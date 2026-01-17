@@ -20,9 +20,9 @@ import {
   AccountBalanceWallet as WalletIcon,
   Email as EmailIcon,
 } from '@mui/icons-material';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../AuthContext';
 import { Navigate } from 'react-router-dom';
-import WalletConnect from './components/WalletConnect';
+import WalletConnect from '../components/WalletConnect';
 
 export default function Login() {
   const { user, login } = useAuth();

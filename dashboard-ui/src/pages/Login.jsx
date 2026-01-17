@@ -46,6 +46,33 @@ export default function Login() {
     setError(null);
 
     try {
+      // MOCK MODE for testing (backend not required)
+      // Remove this section when backend is ready
+      if (true) { // Change to false to use real backend
+        // Mock successful login
+        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
+        
+        // Determine role based on email
+        const role = email.includes('admin') ? 'admin' : 'client';
+        
+        const mockUser = {
+          id: '123',
+          email: email,
+          role: role,
+          is_active: true,
+        };
+
+        // Store mock token and user data
+        localStorage.setItem('access_token', 'mock-token-12345');
+        localStorage.setItem('user', JSON.stringify(mockUser));
+
+        // Update auth context
+        login(email, null, role);
+        setLoading(false);
+        return;
+      }
+
+      // REAL API CALL (for when backend is ready)
       const response = await fetch(
         `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/auth/email/login`,
         {
@@ -140,6 +167,14 @@ export default function Login() {
           {/* Email Login Tab */}
           {tab === 0 && (
             <form onSubmit={handleEmailLogin}>
+              <Alert severity="info" sx={{ mb: 2 }}>
+                <Typography variant="body2">
+                  <strong>🧪 Test Mode Active</strong>
+                  <br />
+                  Use any email/password to login. Add "admin" in email for admin access.
+                </Typography>
+              </Alert>
+              
               <TextField
                 label="Email"
                 type="email"
@@ -150,6 +185,7 @@ export default function Login() {
                 required
                 autoFocus
                 disabled={loading}
+                helperText="Try: user@test.com (client) or admin@test.com (admin)"
               />
               
               <TextField
@@ -161,6 +197,7 @@ export default function Login() {
                 margin="normal"
                 required
                 disabled={loading}
+                helperText="Any password works in test mode"
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">

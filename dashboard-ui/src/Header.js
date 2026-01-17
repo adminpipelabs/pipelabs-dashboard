@@ -46,10 +46,12 @@ export default function Header({ username = 'demo_user', role }) {
               sx={{ mr: 1 }}
             />
             <IconButton onClick={handleMenu} sx={{ ml: 1 }} color="inherit">
-              <Avatar alt={user.username}>{user.username.charAt(0).toUpperCase()}</Avatar>
+              <Avatar alt={user.email || user.username || 'User'}>
+                {(user.email || user.username || 'U').charAt(0).toUpperCase()}
+              </Avatar>
             </IconButton>
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleClose}>
-              <MenuItem disabled>{user.username}</MenuItem>
+              <MenuItem disabled>{user.email || user.username || 'User'}</MenuItem>
               <MenuItem disabled>{user.role}</MenuItem>
               <MenuItem onClick={handleLogout}>Logout</MenuItem>
             </Menu>

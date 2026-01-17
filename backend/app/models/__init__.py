@@ -20,6 +20,7 @@ from app.models.models import (
     ChatRole,
     UserRole,
 )
+from app.models.user import User, Admin
 
 __all__ = [
     "Client",
@@ -39,4 +40,6 @@ __all__ = [
     "AlertSeverity",
     "ChatRole",
     "UserRole",
+    "User",
+    "Admin",
 ]

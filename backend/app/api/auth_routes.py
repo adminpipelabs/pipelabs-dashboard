@@ -1,13 +1,11 @@
 """
-Enhanced Authentication API with Wallet + Email + 2FA support
-Supports: MetaMask wallet, Email/Password, Admin 2FA
+Authentication routes for wallet and email-based login
+Supports both client (wallet + email) and admin (email + 2FA) authentication
 """
-from typing import Annotated, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from typing import Optional
 from datetime import datetime, timedelta
 import jwt
 from passlib.context import CryptContext
@@ -19,23 +17,24 @@ import io
 import base64
 
 from app.core.database import get_db
-from app.models.user import User, Admin
-from app.core.config import settings
+from app.models import User, Admin
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
-router = APIRouter()
+router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# JWT settings
-SECRET_KEY = settings.SECRET_KEY
+# JWT settings (should be in config)
+SECRET_KEY = "your-secret-key-change-in-production"  # TODO: Move to env
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 w3 = Web3()
 
-# ==================== Request/Response Models ====================
+# ==================== Models ====================
 
 class WalletLoginRequest(BaseModel):
     wallet_address: str
@@ -46,24 +45,17 @@ class EmailRegisterRequest(BaseModel):
     email: EmailStr
     password: str
     role: str = "client"  # client or admin
+    company_name: Optional[str] = None
 
 class EmailLoginRequest(BaseModel):
     email: EmailStr
     password: str
-    totp_code: Optional[str] = None  # Required for admins with 2FA enabled
+    totp_code: Optional[str] = None  # For admin 2FA
 
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: dict
-
-class UserResponse(BaseModel):
-    id: str
-    email: Optional[str]
-    wallet_address: Optional[str]
-    role: str
-    is_active: bool
-    totp_enabled: bool
 
 class Enable2FAResponse(BaseModel):
     secret: str
@@ -72,7 +64,7 @@ class Enable2FAResponse(BaseModel):
 
 # ==================== Helper Functions ====================
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Create JWT access token"""
     to_encode = data.copy()
     if expires_delta:
@@ -93,10 +85,7 @@ def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 def verify_wallet_signature(wallet_address: str, message: str, signature: str) -> bool:
-    """
-    Verify Ethereum wallet signature
-    Used for MetaMask login
-    """
+    """Verify Ethereum wallet signature"""
     try:
         # Normalize address
         wallet_address = Web3.to_checksum_address(wallet_address)
@@ -107,7 +96,7 @@ def verify_wallet_signature(wallet_address: str, message: str, signature: str) -
         # Recover address from signature
         recovered_address = w3.eth.account.recover_message(message_hash, signature=signature)
         
-        # Compare addresses (case-insensitive)
+        # Compare addresses
         return recovered_address.lower() == wallet_address.lower()
     except Exception as e:
         print(f"Signature verification error: {e}")
@@ -116,57 +105,30 @@ def verify_wallet_signature(wallet_address: str, message: str, signature: str) -
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db)
-) -> User:
-    """Get current authenticated user from JWT token"""
+):
+    """Get current user from JWT token"""
     token = credentials.credentials
     
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
         if user_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials"
-            )
+            raise HTTPException(status_code=401, detail="Invalid authentication credentials")
     except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired"
-        )
+        raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials"
-        )
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
     
     # Get user from database
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
-        )
-    
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is disabled"
-        )
+        raise HTTPException(status_code=401, detail="User not found")
     
     return user
 
-async def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
-    """Require admin role"""
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
-        )
-    return current_user
-
-# ==================== Auth Routes ====================
+# ==================== Routes ====================
 
 @router.post("/wallet/login", response_model=TokenResponse)
 async def wallet_login(
@@ -176,7 +138,6 @@ async def wallet_login(
     """
     Login with Ethereum wallet (MetaMask, WalletConnect, etc.)
     Client signs a message to prove ownership of wallet
-    Auto-creates account if doesn't exist
     """
     # Verify signature
     if not verify_wallet_signature(request.wallet_address, request.message, request.signature):
@@ -194,29 +155,24 @@ async def wallet_login(
     )
     user = result.scalar_one_or_none()
     
-    # Auto-register if new wallet
+    # Create user if doesn't exist (auto-registration)
     if not user:
         user = User(
             wallet_address=wallet_address,
             role="client",
-            is_active=True,
-            last_login=datetime.utcnow()
+            is_active=True
         )
         db.add(user)
         await db.commit()
         await db.refresh(user)
-    else:
-        # Update last login
-        user.last_login = datetime.utcnow()
-        await db.commit()
+    
+    # Update last login
+    user.last_login = datetime.utcnow()
+    await db.commit()
     
     # Create access token
     access_token = create_access_token(
-        data={
-            "sub": str(user.id),
-            "role": user.role,
-            "wallet": wallet_address
-        }
+        data={"sub": str(user.id), "role": user.role, "wallet": wallet_address}
     )
     
     return TokenResponse(
@@ -226,8 +182,7 @@ async def wallet_login(
             "wallet_address": user.wallet_address,
             "email": user.email,
             "role": user.role,
-            "is_active": user.is_active,
-            "totp_enabled": user.totp_secret is not None
+            "is_active": user.is_active
         }
     )
 
@@ -240,13 +195,6 @@ async def email_register(
     Register with email and password
     Available for both clients and admins
     """
-    # Validate role
-    if request.role not in ["client", "admin"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Role must be 'client' or 'admin'"
-        )
-    
     # Check if email already exists
     result = await db.execute(
         select(User).where(User.email == request.email)
@@ -265,8 +213,7 @@ async def email_register(
         email=request.email,
         password_hash=hashed_password,
         role=request.role,
-        is_active=True,
-        last_login=datetime.utcnow()
+        is_active=True
     )
     
     db.add(user)
@@ -275,11 +222,7 @@ async def email_register(
     
     # Create access token
     access_token = create_access_token(
-        data={
-            "sub": str(user.id),
-            "role": user.role,
-            "email": request.email
-        }
+        data={"sub": str(user.id), "role": user.role, "email": request.email}
     )
     
     return TokenResponse(
@@ -288,8 +231,7 @@ async def email_register(
             "id": str(user.id),
             "email": user.email,
             "role": user.role,
-            "is_active": user.is_active,
-            "totp_enabled": False
+            "is_active": user.is_active
         }
     )
 
@@ -300,7 +242,7 @@ async def email_login(
 ):
     """
     Login with email and password
-    Admins with 2FA enabled must provide TOTP code
+    Admins require 2FA (TOTP code)
     """
     # Get user by email
     result = await db.execute(
@@ -308,7 +250,7 @@ async def email_login(
     )
     user = result.scalar_one_or_none()
     
-    if not user or not user.password_hash or not verify_password(request.password, user.password_hash):
+    if not user or not verify_password(request.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
@@ -321,8 +263,14 @@ async def email_login(
             detail="Account is disabled"
         )
     
-    # If admin with 2FA enabled, require TOTP code
-    if user.role == "admin" and user.totp_secret:
+    # If admin, require 2FA
+    if user.role == "admin":
+        if not user.totp_secret:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="2FA not set up. Please contact administrator."
+            )
+        
         if not request.totp_code:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -331,7 +279,7 @@ async def email_login(
         
         # Verify TOTP code
         totp = pyotp.TOTP(user.totp_secret)
-        if not totp.verify(request.totp_code, valid_window=1):  # Allow 30s window
+        if not totp.verify(request.totp_code):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid 2FA code"
@@ -343,11 +291,7 @@ async def email_login(
     
     # Create access token
     access_token = create_access_token(
-        data={
-            "sub": str(user.id),
-            "role": user.role,
-            "email": user.email
-        }
+        data={"sub": str(user.id), "role": user.role, "email": user.email}
     )
     
     return TokenResponse(
@@ -364,19 +308,25 @@ async def email_login(
 
 @router.post("/2fa/enable", response_model=Enable2FAResponse)
 async def enable_2fa(
-    current_user: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Enable 2FA for admin users
     Returns QR code and secret for Google Authenticator/Authy
     """
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="2FA is only available for admin users"
+        )
+    
     # Generate TOTP secret
     secret = pyotp.random_base32()
     
     # Create TOTP URI for QR code
     totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
-        name=current_user.email or f"Admin-{current_user.id}",
+        name=current_user.email,
         issuer_name="Pipe Labs Dashboard"
     )
     
@@ -397,6 +347,7 @@ async def enable_2fa(
     
     # Save to database
     current_user.totp_secret = secret
+    # TODO: Store backup codes (hashed) in database
     await db.commit()
     
     return Enable2FAResponse(
@@ -407,26 +358,33 @@ async def enable_2fa(
 
 @router.post("/2fa/disable")
 async def disable_2fa(
-    current_user: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Disable 2FA for current admin user"""
+    """Disable 2FA for current user"""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="2FA is only available for admin users"
+        )
+    
     current_user.totp_secret = None
     await db.commit()
     
     return {"message": "2FA disabled successfully"}
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me")
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current authenticated user information"""
-    return UserResponse(
-        id=str(current_user.id),
-        email=current_user.email,
-        wallet_address=current_user.wallet_address,
-        role=current_user.role,
-        is_active=current_user.is_active,
-        totp_enabled=current_user.totp_secret is not None
-    )
+    return {
+        "id": str(current_user.id),
+        "email": current_user.email,
+        "wallet_address": current_user.wallet_address,
+        "role": current_user.role,
+        "is_active": current_user.is_active,
+        "totp_enabled": current_user.totp_secret is not None,
+        "last_login": current_user.last_login
+    }
 
 @router.post("/logout")
 async def logout():
@@ -435,17 +393,3 @@ async def logout():
     Could implement token blacklist here for added security
     """
     return {"message": "Logged out successfully"}
-
-@router.get("/nonce/{wallet_address}")
-async def get_nonce(wallet_address: str):
-    """
-    Get nonce message for wallet signature
-    Used by frontend before signing
-    """
-    timestamp = int(datetime.utcnow().timestamp())
-    nonce = f"Sign this message to login to Pipe Labs Dashboard.\n\nWallet: {wallet_address}\nTimestamp: {timestamp}"
-    
-    return {
-        "message": nonce,
-        "timestamp": timestamp
-    }

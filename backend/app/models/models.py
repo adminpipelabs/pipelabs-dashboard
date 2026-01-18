@@ -49,7 +49,9 @@ class PaymentMethod(str, PyEnum):
 
 
 class Exchange(str, PyEnum):
+    # Major Centralized Exchanges (Hummingbot supported)
     BINANCE = "binance"
+    BINANCE_US = "binance_us"
     BYBIT = "bybit"
     OKX = "okx"
     KUCOIN = "kucoin"
@@ -57,6 +59,24 @@ class Exchange(str, PyEnum):
     HUOBI = "huobi"
     KRAKEN = "kraken"
     COINBASE = "coinbase"
+    BITFINEX = "bitfinex"
+    BITMART = "bitmart"
+    BITGET = "bitget"
+    MEXC = "mexc"
+    POLONIEX = "poloniex"
+    ASCENDEX = "ascendex"
+    CRYPTO_COM = "crypto_com"
+    PHEMEX = "phemex"
+    BITMEX = "bitmex"
+    DYDX = "dydx"
+    BITTREX = "bittrex"
+    PROBIT = "probit"
+    WHITEBIT = "whitebit"
+    HITBTC = "hitbtc"
+    BITSTAMP = "bitstamp"
+    GEMINI = "gemini"
+    FTX = "ftx"  # Historical/backup
+    # Add more as needed
 
 
 class BotType(str, PyEnum):

@@ -19,6 +19,7 @@ import {
   DialogActions,
   TextField,
   MenuItem,
+  ListSubheader,
   Switch,
   FormControlLabel,
   Chip,
@@ -38,15 +39,42 @@ import { useParams } from 'react-router-dom';
 import api from '../services/api';
 
 const EXCHANGES = [
-  { value: 'binance', label: 'Binance' },
-  { value: 'bybit', label: 'Bybit' },
-  { value: 'okx', label: 'OKX' },
-  { value: 'kucoin', label: 'KuCoin' },
-  { value: 'gateio', label: 'Gate.io' },
-  { value: 'huobi', label: 'Huobi' },
-  { value: 'kraken', label: 'Kraken' },
-  { value: 'coinbase', label: 'Coinbase' },
+  // Major Tier 1 Exchanges
+  { value: 'binance', label: 'Binance', passphrase: false, group: 'Major Exchanges' },
+  { value: 'binance_us', label: 'Binance US', passphrase: false, group: 'Major Exchanges' },
+  { value: 'bybit', label: 'Bybit', passphrase: false, group: 'Major Exchanges' },
+  { value: 'okx', label: 'OKX', passphrase: true, group: 'Major Exchanges' },
+  { value: 'kucoin', label: 'KuCoin', passphrase: true, group: 'Major Exchanges' },
+  { value: 'coinbase', label: 'Coinbase', passphrase: false, group: 'Major Exchanges' },
+  { value: 'kraken', label: 'Kraken', passphrase: false, group: 'Major Exchanges' },
+  
+  // Tier 2 Exchanges
+  { value: 'gateio', label: 'Gate.io', passphrase: false, group: 'Popular Exchanges' },
+  { value: 'huobi', label: 'Huobi', passphrase: false, group: 'Popular Exchanges' },
+  { value: 'bitfinex', label: 'Bitfinex', passphrase: false, group: 'Popular Exchanges' },
+  { value: 'bitmart', label: 'BitMart', passphrase: true, group: 'Popular Exchanges' },
+  { value: 'bitget', label: 'Bitget', passphrase: false, group: 'Popular Exchanges' },
+  { value: 'mexc', label: 'MEXC', passphrase: false, group: 'Popular Exchanges' },
+  { value: 'crypto_com', label: 'Crypto.com', passphrase: false, group: 'Popular Exchanges' },
+  
+  // Additional Exchanges
+  { value: 'poloniex', label: 'Poloniex', passphrase: false, group: 'Other Exchanges' },
+  { value: 'ascendex', label: 'AscendEX', passphrase: false, group: 'Other Exchanges' },
+  { value: 'phemex', label: 'Phemex', passphrase: false, group: 'Other Exchanges' },
+  { value: 'bitmex', label: 'BitMEX', passphrase: false, group: 'Other Exchanges' },
+  { value: 'dydx', label: 'dYdX', passphrase: false, group: 'Other Exchanges' },
+  { value: 'bittrex', label: 'Bittrex', passphrase: false, group: 'Other Exchanges' },
+  { value: 'probit', label: 'ProBit', passphrase: false, group: 'Other Exchanges' },
+  { value: 'whitebit', label: 'WhiteBit', passphrase: false, group: 'Other Exchanges' },
+  { value: 'hitbtc', label: 'HitBTC', passphrase: false, group: 'Other Exchanges' },
+  { value: 'bitstamp', label: 'Bitstamp', passphrase: false, group: 'Other Exchanges' },
+  { value: 'gemini', label: 'Gemini', passphrase: false, group: 'Other Exchanges' },
 ];
+
+// Get unique groups
+const EXCHANGE_GROUPS = [...new Set(EXCHANGES.map(ex => ex.group))];
+
+const getExchangesByGroup = (group) => EXCHANGES.filter(ex => ex.group === group);
 
 export default function APIKeysManagement() {
   const { clientId } = useParams();
@@ -300,11 +328,14 @@ export default function APIKeysManagement() {
               onChange={(e) => setFormData({ ...formData, exchange: e.target.value })}
               fullWidth
             >
-              {EXCHANGES.map((ex) => (
-                <MenuItem key={ex.value} value={ex.value}>
-                  {ex.label}
-                </MenuItem>
-              ))}
+              {EXCHANGE_GROUPS.map((group) => [
+                <ListSubheader key={group}>{group}</ListSubheader>,
+                ...getExchangesByGroup(group).map((ex) => (
+                  <MenuItem key={ex.value} value={ex.value}>
+                    {ex.label}
+                  </MenuItem>
+                ))
+              ])}
             </TextField>
 
             <TextField
@@ -332,13 +363,13 @@ export default function APIKeysManagement() {
               fullWidth
             />
 
-            {['okx', 'kucoin'].includes(formData.exchange) && (
+            {EXCHANGES.find(ex => ex.value === formData.exchange)?.passphrase && (
               <TextField
                 label="Passphrase"
                 value={formData.passphrase}
                 onChange={(e) => setFormData({ ...formData, passphrase: e.target.value })}
                 type="password"
-                helperText="Required for OKX and KuCoin"
+                helperText={`Required for ${EXCHANGES.find(ex => ex.value === formData.exchange)?.label}`}
                 fullWidth
               />
             )}

@@ -275,14 +275,15 @@ export default function Register() {
                 }}
               />
 
-              <FormControl component="fieldset" sx={{ mt: 3 }}>
+              {/* Temporarily hidden - Billing Plan Selection */}
+              {/* <FormControl component="fieldset" sx={{ mt: 3 }}>
                 <FormLabel component="legend">Billing Plan</FormLabel>
                 <RadioGroup value={formData.billingPlan} onChange={handleChange('billingPlan')}>
                   <FormControlLabel value="monthly" control={<Radio />} label="Monthly - $5,000/month" />
                   <FormControlLabel value="quarterly" control={<Radio />} label="Quarterly - $14,000 (~7% discount)" />
                   <FormControlLabel value="annual" control={<Radio />} label="Annual - $50,000 (~17% discount)" />
                 </RadioGroup>
-              </FormControl>
+              </FormControl> */}
             </Box>
           )}
 

@@ -741,3 +741,14 @@ export const agentAPI = {
     });
   }
 };
+
+/**
+ * Default export for convenience (wraps all APIs)
+ */
+const api = {
+  admin: adminAPI,
+  reports: reportsAPI,
+  agent: agentAPI
+};
+
+export default api;

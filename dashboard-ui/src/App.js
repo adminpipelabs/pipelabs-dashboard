@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { Dashboard, Portfolio, Orders, Bots, Agent } from './pages';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import Reports from './pages/Reports';
 import AdminDashboard from './pages/AdminDashboard';
 import ClientManagement from './pages/ClientManagement';
@@ -43,13 +44,14 @@ function Layout() {
     localStorage.setItem('chat-sidebar-open', JSON.stringify(chatOpen));
   }, [chatOpen]);
   
-  if (!user && location.pathname !== '/login') {
-    // Guard everything except login
+  if (!user && location.pathname !== '/login' && location.pathname !== '/register') {
+    // Guard everything except login and register
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
   
   const isAdmin = user && user.role === 'admin';
   const isLoginPage = location.pathname === '/login';
+  const isRegisterPage = location.pathname === '/register';
   const chatSidebarWidth = chatOpen ? 380 : 0;
   
   return (
@@ -112,11 +114,12 @@ function Layout() {
           <Route path="/admin/clients/:clientId" element={<ProtectedRoute><ClientDetailView /></ProtectedRoute>} />
           <Route path="/admin/tokens" element={<ProtectedRoute><TokenManagement /></ProtectedRoute>} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
         </Routes>
       </Box>
 
       {/* Chat Sidebar */}
-      {user && !isLoginPage && (
+      {user && !isLoginPage && !isRegisterPage && (
         <>
           <ChatSidebar open={chatOpen} onClose={() => setChatOpen(false)} />
           {!chatOpen && (

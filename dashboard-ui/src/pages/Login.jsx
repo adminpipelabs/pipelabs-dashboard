@@ -236,7 +236,7 @@ export default function Login() {
               </Button>
 
               <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: 'center' }}>
-                Don't have an account? Contact your administrator.
+                Don't have an account? <a href="/register" style={{ color: '#667eea', textDecoration: 'none' }}>Sign up now</a>
               </Typography>
             </form>
           )}

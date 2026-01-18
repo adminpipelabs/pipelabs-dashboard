@@ -11,6 +11,7 @@ from sqlalchemy import select, func
 from app.core.database import get_db
 from app.core.security import get_password_hash, encrypt_api_key
 from app.api.auth import get_current_admin
+from app.models.user import User
 from app.models import (
     Client, ClientExchange, ClientPair, Alert, Order, PnLSnapshot,
     ClientStatus, BotType, PairStatus, UserRole
@@ -81,7 +82,7 @@ class AlertResponse(BaseModel):
 # Routes
 @router.get("/overview", response_model=AdminOverview)
 async def get_admin_overview(
-    current_admin: Annotated[Client, Depends(get_current_admin)],
+    current_admin: Annotated[User, Depends(get_current_admin)],
     db: AsyncSession = Depends(get_db)
 ):
     """Get global dashboard stats"""
@@ -103,7 +104,7 @@ async def get_admin_overview(
 
 @router.get("/clients", response_model=List[ClientDetail])
 async def list_clients(
-    current_admin: Annotated[Client, Depends(get_current_admin)],
+    current_admin: Annotated[User, Depends(get_current_admin)],
     db: AsyncSession = Depends(get_db)
 ):
     """List all clients"""
@@ -144,7 +145,7 @@ async def list_clients(
 @router.post("/clients", response_model=ClientDetail)
 async def create_client(
     client_data: ClientCreate,
-    current_admin: Annotated[Client, Depends(get_current_admin)],
+    current_admin: Annotated[User, Depends(get_current_admin)],
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new client"""
@@ -180,7 +181,7 @@ async def create_client(
 @router.get("/clients/{client_id}", response_model=ClientDetail)
 async def get_client(
     client_id: UUID,
-    current_admin: Annotated[Client, Depends(get_current_admin)],
+    current_admin: Annotated[User, Depends(get_current_admin)],
     db: AsyncSession = Depends(get_db)
 ):
     """Get client details"""

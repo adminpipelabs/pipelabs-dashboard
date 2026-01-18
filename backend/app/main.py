@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, clients, bots, orders, agent, admin
+from app.api import auth, clients, bots, orders, agent, admin, billing
 from app.core.config import settings
 from app.core.database import engine, Base
 
@@ -39,6 +39,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(billing.router, prefix="/api", tags=["Billing"])
 app.include_router(clients.router, prefix="/api/clients", tags=["Clients"])
 app.include_router(bots.router, prefix="/api/bots", tags=["Bots"])
 app.include_router(orders.router, prefix="/api/orders", tags=["Orders"])

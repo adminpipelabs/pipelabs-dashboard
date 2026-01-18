@@ -9,6 +9,7 @@ from app.models.models import (
     PnLSnapshot,
     AgentChat,
     Alert,
+    Invoice,
     ClientStatus,
     BotType,
     PairStatus,
@@ -19,6 +20,10 @@ from app.models.models import (
     AlertSeverity,
     ChatRole,
     UserRole,
+    PaymentStatus,
+    BillingPlan,
+    InvoiceStatus,
+    PaymentMethod,
 )
 from app.models.user import User, Admin
 
@@ -30,6 +35,7 @@ __all__ = [
     "PnLSnapshot",
     "AgentChat",
     "Alert",
+    "Invoice",
     "ClientStatus",
     "BotType",
     "PairStatus",
@@ -40,6 +46,10 @@ __all__ = [
     "AlertSeverity",
     "ChatRole",
     "UserRole",
+    "PaymentStatus",
+    "BillingPlan",
+    "InvoiceStatus",
+    "PaymentMethod",
     "User",
     "Admin",
 ]

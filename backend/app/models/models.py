@@ -18,6 +18,34 @@ class ClientStatus(str, PyEnum):
     ACTIVE = "active"
     PAUSED = "paused"
     SUSPENDED = "suspended"
+    PENDING_PAYMENT = "pending_payment"
+
+
+class PaymentStatus(str, PyEnum):
+    PAID = "paid"
+    PENDING = "pending"
+    OVERDUE = "overdue"
+    FAILED = "failed"
+
+
+class BillingPlan(str, PyEnum):
+    MONTHLY = "monthly"
+    QUARTERLY = "quarterly"
+    ANNUAL = "annual"
+
+
+class InvoiceStatus(str, PyEnum):
+    PENDING = "pending"
+    PAID = "paid"
+    OVERDUE = "overdue"
+    CANCELLED = "cancelled"
+
+
+class PaymentMethod(str, PyEnum):
+    CRYPTO = "crypto"
+    STRIPE = "stripe"
+    BANK_TRANSFER = "bank_transfer"
+    MANUAL = "manual"
 
 
 class BotType(str, PyEnum):
@@ -84,6 +112,27 @@ class Client(Base):
     status: Mapped[ClientStatus] = mapped_column(Enum(ClientStatus), default=ClientStatus.ACTIVE)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     settings: Mapped[Optional[dict]] = mapped_column(JSON, default=dict)
+    
+    # Billing fields
+    billing_plan: Mapped[BillingPlan] = mapped_column(Enum(BillingPlan), default=BillingPlan.MONTHLY)
+    monthly_fee: Mapped[float] = mapped_column(DECIMAL(10, 2), default=5000.00)
+    billing_cycle_start: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    payment_status: Mapped[PaymentStatus] = mapped_column(Enum(PaymentStatus), default=PaymentStatus.PENDING)
+    next_billing_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_payment_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    grace_period_days: Mapped[int] = mapped_column(default=7)
+    auto_suspend_on_overdue: Mapped[bool] = mapped_column(Boolean, default=True)
+    suspension_reason: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    
+    # Contract fields
+    contract_accepted: Mapped[bool] = mapped_column(Boolean, default=False)
+    contract_signed_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    contract_signature: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    contract_ip_address: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    
+    # Stripe fields (if using Stripe)
+    stripe_customer_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    stripe_subscription_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     # Relationships
     exchanges: Mapped[List["ClientExchange"]] = relationship(back_populates="client", cascade="all, delete-orphan")
@@ -92,6 +141,7 @@ class Client(Base):
     pnl_snapshots: Mapped[List["PnLSnapshot"]] = relationship(back_populates="client", cascade="all, delete-orphan")
     chats: Mapped[List["AgentChat"]] = relationship(back_populates="client", cascade="all, delete-orphan")
     alerts: Mapped[List["Alert"]] = relationship(back_populates="client", cascade="all, delete-orphan")
+    invoices: Mapped[List["Invoice"]] = relationship(back_populates="client", cascade="all, delete-orphan")
 
 
 class ClientExchange(Base):
@@ -204,3 +254,36 @@ class Alert(Base):
     # Relationships
     client: Mapped["Client"] = relationship(back_populates="alerts")
     pair: Mapped["ClientPair"] = relationship(back_populates="alerts")
+
+
+class Invoice(Base):
+    """Invoices for client billing"""
+    __tablename__ = "invoices"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    client_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("clients.id"), nullable=False)
+    
+    # Invoice details
+    amount: Mapped[float] = mapped_column(DECIMAL(10, 2), nullable=False)
+    billing_period: Mapped[str] = mapped_column(String(20), nullable=False)  # e.g., "2026-01"
+    status: Mapped[InvoiceStatus] = mapped_column(Enum(InvoiceStatus), default=InvoiceStatus.PENDING)
+    
+    # Payment details
+    payment_method: Mapped[Optional[PaymentMethod]] = mapped_column(Enum(PaymentMethod), nullable=True)
+    payment_proof: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # TX hash or Stripe payment ID
+    payment_wallet_address: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    
+    # Dates
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    due_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    paid_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    # Stripe specific
+    stripe_invoice_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    stripe_payment_intent_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    
+    # Notes
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Relationships
+    client: Mapped["Client"] = relationship(back_populates="invoices")

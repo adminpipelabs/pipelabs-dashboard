@@ -140,4 +140,67 @@ class Order(Base):
     client_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("clients.id"), nullable=False)
     pair_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("client_pairs.id"), nullable=False)
     exchange: Mapped[str] = mapped_column(String(50), nullable=False)
-    trading_pair: Mapped[str] = mapped_column(String(20), nu
+    trading_pair: Mapped[str] = mapped_column(String(20), nullable=False)
+    side: Mapped[OrderSide] = mapped_column(Enum(OrderSide), nullable=False)
+    order_type: Mapped[OrderType] = mapped_column(Enum(OrderType), nullable=False)
+    price: Mapped[float] = mapped_column(DECIMAL(20, 8), nullable=False)
+    quantity: Mapped[float] = mapped_column(DECIMAL(20, 8), nullable=False)
+    filled_quantity: Mapped[float] = mapped_column(DECIMAL(20, 8), default=0)
+    status: Mapped[OrderStatus] = mapped_column(Enum(OrderStatus), default=OrderStatus.OPEN)
+    external_order_id: Mapped[Optional[str]] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    client: Mapped["Client"] = relationship(back_populates="orders")
+    pair: Mapped["ClientPair"] = relationship(back_populates="orders")
+
+
+class PnLSnapshot(Base):
+    """P&L snapshots for reporting"""
+    __tablename__ = "pnl_snapshots"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    client_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("clients.id"), nullable=False)
+    pair_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("client_pairs.id"), nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    realized_pnl: Mapped[float] = mapped_column(DECIMAL(20, 8), default=0)
+    unrealized_pnl: Mapped[float] = mapped_column(DECIMAL(20, 8), default=0)
+    volume_24h: Mapped[float] = mapped_column(DECIMAL(20, 8), default=0)
+    trades_count: Mapped[int] = mapped_column(default=0)
+
+    # Relationships
+    client: Mapped["Client"] = relationship(back_populates="pnl_snapshots")
+    pair: Mapped["ClientPair"] = relationship(back_populates="pnl_snapshots")
+
+
+class AgentChat(Base):
+    """AI Agent chat history"""
+    __tablename__ = "agent_chats"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    client_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("clients.id"), nullable=False)
+    role: Mapped[ChatRole] = mapped_column(Enum(ChatRole), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    client: Mapped["Client"] = relationship(back_populates="chats")
+
+
+class Alert(Base):
+    """System alerts and notifications"""
+    __tablename__ = "alerts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    client_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("clients.id"), nullable=False)
+    pair_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("client_pairs.id"))
+    alert_type: Mapped[AlertType] = mapped_column(Enum(AlertType), nullable=False)
+    severity: Mapped[AlertSeverity] = mapped_column(Enum(AlertSeverity), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    client: Mapped["Client"] = relationship(back_populates="alerts")
+    pair: Mapped["ClientPair"] = relationship(back_populates="alerts")

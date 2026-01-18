@@ -4,6 +4,7 @@ Supports both wallet and email authentication
 """
 import uuid
 from datetime import datetime
+from typing import Optional
 from sqlalchemy import String, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -21,25 +22,25 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
     # Email authentication
-    email: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True, index=True)
-    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True, index=True)
+    password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     
     # Wallet authentication  
-    wallet_address: Mapped[str | None] = mapped_column(String(42), unique=True, nullable=True, index=True)
+    wallet_address: Mapped[Optional[str]] = mapped_column(String(42), unique=True, nullable=True, index=True)
     
     # User info
     role: Mapped[str] = mapped_column(String(20), default="client")  # client or admin
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     
     # 2FA for admins
-    totp_secret: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    totp_secret: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_login: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     
     # Optional: Link to client profile
-    client_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    client_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
 
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, wallet={self.wallet_address}, role={self.role})>"

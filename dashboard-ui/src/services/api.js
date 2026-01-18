@@ -44,6 +44,55 @@ export const adminAPI = {
    * Get admin dashboard overview
    */
   async getDashboard() {
+    return apiCall('/api/admin/overview');
+  },
+
+  async getClients() {
+    return apiCall('/api/admin/clients');
+  },
+
+  async getClient(clientId) {
+    return apiCall(`/api/admin/clients/${clientId}`);
+  },
+
+  async createClient(data) {
+    return apiCall('/api/admin/clients', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateClient(clientId, data) {
+    return apiCall(`/api/admin/clients/${clientId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+  // API Keys Management
+  async getClientAPIKeys(clientId) {
+    return apiCall(`/api/admin/clients/${clientId}/api-keys`);
+  },
+
+  async addClientAPIKey(clientId, data) {
+    return apiCall(`/api/admin/clients/${clientId}/api-keys`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateClientAPIKey(clientId, keyId, data) {
+    return apiCall(`/api/admin/clients/${clientId}/api-keys/${keyId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteClientAPIKey(clientId, keyId) {
+    return apiCall(`/api/admin/clients/${clientId}/api-keys/${keyId}`, {
+      method: 'DELETE',
+    });
+  },
+  async getDashboard() {
     if (USE_MOCK) {
       await new Promise(resolve => setTimeout(resolve, 800));
       return {

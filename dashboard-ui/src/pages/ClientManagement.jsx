@@ -146,22 +146,6 @@ export default function ClientManagement() {
                   <TableCell>Tier</TableCell>
                   <TableCell align="right">Projects</TableCell>
                   <TableCell align="right">Tokens</TableCell>
-                  <TableCell align="center">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleOpenDialog(client)}
-                        title="Edit Client"
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => window.location.href = `/admin/clients/${client.id}`}
-                        title="View Client Dashboard"
-                      >
-                        <VisibilityIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
                   <TableCell align="right">Volume (30d)</TableCell>
                   <TableCell align="right">Revenue (30d)</TableCell>
                   <TableCell align="center">Actions</TableCell>

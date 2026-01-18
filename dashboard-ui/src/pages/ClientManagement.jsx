@@ -27,6 +27,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
+import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { adminAPI } from '../services/api';
 
@@ -145,6 +146,22 @@ export default function ClientManagement() {
                   <TableCell>Tier</TableCell>
                   <TableCell align="right">Projects</TableCell>
                   <TableCell align="right">Tokens</TableCell>
+                  <TableCell align="center">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleOpenDialog(client)}
+                        title="Edit Client"
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => window.location.href = `/admin/clients/${client.id}`}
+                        title="View Client Dashboard"
+                      >
+                        <VisibilityIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
                   <TableCell align="right">Volume (30d)</TableCell>
                   <TableCell align="right">Revenue (30d)</TableCell>
                   <TableCell align="center">Actions</TableCell>
@@ -176,6 +193,13 @@ export default function ClientManagement() {
                         title="Edit Client"
                       >
                         <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => window.location.href = `/admin/clients/${client.id}/api-keys`}
+                        title="Manage API Keys"
+                      >
+                        <VpnKeyIcon fontSize="small" />
                       </IconButton>
                       <IconButton
                         size="small"

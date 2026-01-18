@@ -46,7 +46,7 @@ export default function WalletConnect({ open, onClose, onSuccess }) {
       
       // Get nonce/message from backend
       const nonceResponse = await fetch(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/auth/nonce/${walletAddress}`
+        `${process.env.REACT_APP_API_URL || 'https://pipelabs-dashboard-production.up.railway.app'}/api/auth/nonce/${walletAddress}`
       );
       
       if (!nonceResponse.ok) {
@@ -61,7 +61,7 @@ export default function WalletConnect({ open, onClose, onSuccess }) {
 
       // Send to backend for verification
       const loginResponse = await fetch(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/auth/wallet/login`,
+        `${process.env.REACT_APP_API_URL || 'https://pipelabs-dashboard-production.up.railway.app'}/api/auth/wallet/login`,
         {
           method: 'POST',
           headers: {

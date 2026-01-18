@@ -75,7 +75,7 @@ export default function Login() {
 
       // REAL API CALL (for when backend is ready)
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/auth/email/login`,
+        `${process.env.REACT_APP_API_URL || 'https://pipelabs-dashboard-production.up.railway.app'}/api/auth/email/login`,
         {
           method: 'POST',
           headers: {

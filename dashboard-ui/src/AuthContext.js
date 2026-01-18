@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }) => {
       const token = localStorage.getItem('access_token');
       if (token) {
         await fetch(
-          `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/auth/logout`,
+          `${process.env.REACT_APP_API_URL || 'https://pipelabs-dashboard-production.up.railway.app'}/api/auth/logout`,
           {
             method: 'POST',
             headers: {
@@ -85,7 +85,7 @@ export const AuthProvider = ({ children }) => {
     try {
       // Verify token by calling /me endpoint
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/auth/me`,
+        `${process.env.REACT_APP_API_URL || 'https://pipelabs-dashboard-production.up.railway.app'}/api/auth/me`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,

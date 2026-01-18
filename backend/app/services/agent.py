@@ -2,7 +2,7 @@
 Scoped Agent Service
 Ensures each client can ONLY access their own accounts, pairs, and data
 """
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
 import logging
 from anthropic import Anthropic
@@ -94,7 +94,7 @@ class ScopedAgentService:
         """Build scoped system prompt for client"""
         return AGENT_SYSTEM_PROMPT.format(**scope.to_dict())
     
-    def validate_action(self, action: Dict, scope: ClientScope) -> tuple[bool, Optional[str]]:
+    def validate_action(self, action: Dict, scope: ClientScope) -> Tuple[bool, Optional[str]]:
         """
         Validate that an action is within client's scope
         Returns: (is_valid, error_message)

@@ -1,480 +1,500 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  MenuItem,
-  ListSubheader,
-  Switch,
-  FormControlLabel,
-  Chip,
-  Alert,
-  Tooltip,
-  CircularProgress,
-} from '@mui/material';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Visibility as VisibilityIcon,
-  VerifiedUser as VerifiedIcon,
-  ContentCopy as CopyIcon,
-} from '@mui/icons-material';
-import { useParams } from 'react-router-dom';
-import api from '../services/api';
+import { useParams, useNavigate } from 'react-router-dom';
+import { adminAPI } from '../services/api';
 
+// Supported exchanges with their required fields
 const EXCHANGES = [
-  // Major Tier 1 Exchanges
-  { value: 'binance', label: 'Binance', passphrase: false, group: 'Major Exchanges' },
-  { value: 'binance_us', label: 'Binance US', passphrase: false, group: 'Major Exchanges' },
-  { value: 'bybit', label: 'Bybit', passphrase: false, group: 'Major Exchanges' },
-  { value: 'okx', label: 'OKX', passphrase: true, group: 'Major Exchanges' },
-  { value: 'kucoin', label: 'KuCoin', passphrase: true, group: 'Major Exchanges' },
-  { value: 'coinbase', label: 'Coinbase', passphrase: false, group: 'Major Exchanges' },
-  { value: 'kraken', label: 'Kraken', passphrase: false, group: 'Major Exchanges' },
-  
-  // Tier 2 Exchanges
-  { value: 'gateio', label: 'Gate.io', passphrase: false, group: 'Popular Exchanges' },
-  { value: 'huobi', label: 'Huobi', passphrase: false, group: 'Popular Exchanges' },
-  { value: 'bitfinex', label: 'Bitfinex', passphrase: false, group: 'Popular Exchanges' },
-  { value: 'bitmart', label: 'BitMart', passphrase: true, group: 'Popular Exchanges' },
-  { value: 'bitget', label: 'Bitget', passphrase: false, group: 'Popular Exchanges' },
-  { value: 'mexc', label: 'MEXC', passphrase: false, group: 'Popular Exchanges' },
-  { value: 'crypto_com', label: 'Crypto.com', passphrase: false, group: 'Popular Exchanges' },
-  
-  // Additional Exchanges
-  { value: 'poloniex', label: 'Poloniex', passphrase: false, group: 'Other Exchanges' },
-  { value: 'ascendex', label: 'AscendEX', passphrase: false, group: 'Other Exchanges' },
-  { value: 'phemex', label: 'Phemex', passphrase: false, group: 'Other Exchanges' },
-  { value: 'bitmex', label: 'BitMEX', passphrase: false, group: 'Other Exchanges' },
-  { value: 'dydx', label: 'dYdX', passphrase: false, group: 'Other Exchanges' },
-  { value: 'bittrex', label: 'Bittrex', passphrase: false, group: 'Other Exchanges' },
-  { value: 'probit', label: 'ProBit', passphrase: false, group: 'Other Exchanges' },
-  { value: 'whitebit', label: 'WhiteBit', passphrase: false, group: 'Other Exchanges' },
-  { value: 'hitbtc', label: 'HitBTC', passphrase: false, group: 'Other Exchanges' },
-  { value: 'bitstamp', label: 'Bitstamp', passphrase: false, group: 'Other Exchanges' },
-  { value: 'gemini', label: 'Gemini', passphrase: false, group: 'Other Exchanges' },
+  { id: 'binance', name: 'Binance', requiresPassphrase: false },
+  { id: 'binance_perpetual', name: 'Binance Perpetual', requiresPassphrase: false },
+  { id: 'bitmart', name: 'BitMart', requiresPassphrase: true, passphraseLabel: 'Memo' },
+  { id: 'gate_io', name: 'Gate.io', requiresPassphrase: false },
+  { id: 'kucoin', name: 'KuCoin', requiresPassphrase: true, passphraseLabel: 'Passphrase' },
+  { id: 'okx', name: 'OKX', requiresPassphrase: true, passphraseLabel: 'Passphrase' },
+  { id: 'bybit', name: 'Bybit', requiresPassphrase: false },
+  { id: 'hyperliquid', name: 'Hyperliquid', requiresPassphrase: false },
+  { id: 'mexc', name: 'MEXC', requiresPassphrase: false },
+  { id: 'htx', name: 'HTX (Huobi)', requiresPassphrase: false },
 ];
 
-// Get unique groups
-const EXCHANGE_GROUPS = [...new Set(EXCHANGES.map(ex => ex.group))];
-
-const getExchangesByGroup = (group) => EXCHANGES.filter(ex => ex.group === group);
-
-export default function APIKeysManagement() {
+const APIKeysManagement = () => {
   const { clientId } = useParams();
+  const navigate = useNavigate();
+  
+  const [client, setClient] = useState(null);
   const [apiKeys, setApiKeys] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [openDialog, setOpenDialog] = useState(false);
-  const [viewDialog, setViewDialog] = useState(false);
-  const [selectedKey, setSelectedKey] = useState(null);
+  const [error, setError] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingKey, setEditingKey] = useState(null);
+  const [saving, setSaving] = useState(false);
+  
+  // Form state
   const [formData, setFormData] = useState({
-    exchange: 'binance',
+    exchange: '',
     api_key: '',
     api_secret: '',
     passphrase: '',
     label: '',
     is_testnet: false,
-    notes: '',
+    notes: ''
   });
 
   useEffect(() => {
     if (clientId) {
-      loadAPIKeys();
+      fetchClientAndKeys();
     }
   }, [clientId]);
 
-  const loadAPIKeys = async () => {
+  const fetchClientAndKeys = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/admin/clients/${clientId}/api-keys`);
-      setApiKeys(response.data);
+      setError(null);
+      
+      // Fetch client details
+      const clientData = await adminAPI.getClient(clientId);
+      setClient(clientData);
+      
+      // Fetch API keys for this client
+      const keysData = await adminAPI.getClientAPIKeys(clientId);
+      setApiKeys(keysData || []);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load API keys');
+      console.error('Failed to fetch data:', err);
+      setError('Failed to load client data. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenDialog = () => {
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleExchangeChange = (e) => {
+    const exchange = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      exchange,
+      passphrase: '' // Reset passphrase when exchange changes
+    }));
+  };
+
+  const getSelectedExchange = () => {
+    return EXCHANGES.find(ex => ex.id === formData.exchange);
+  };
+
+  const resetForm = () => {
     setFormData({
-      exchange: 'binance',
+      exchange: '',
       api_key: '',
       api_secret: '',
       passphrase: '',
       label: '',
       is_testnet: false,
-      notes: '',
+      notes: ''
     });
-    setOpenDialog(true);
+    setEditingKey(null);
   };
 
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
+  const openAddModal = () => {
+    resetForm();
+    setShowAddModal(true);
+  };
+
+  const openEditModal = (key) => {
     setFormData({
-      exchange: 'binance',
-      api_key: '',
-      api_secret: '',
+      exchange: key.exchange,
+      api_key: '', // Don't show existing key for security
+      api_secret: '', // Don't show existing secret for security
       passphrase: '',
-      label: '',
-      is_testnet: false,
-      notes: '',
+      label: key.label || '',
+      is_testnet: key.is_testnet || false,
+      notes: key.notes || ''
     });
+    setEditingKey(key);
+    setShowAddModal(true);
   };
 
-  const handleSubmit = async () => {
+  const closeModal = () => {
+    setShowAddModal(false);
+    resetForm();
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.exchange || !formData.api_key || !formData.api_secret) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    const selectedExchange = getSelectedExchange();
+    if (selectedExchange?.requiresPassphrase && !formData.passphrase) {
+      setError(`${selectedExchange.passphraseLabel} is required for ${selectedExchange.name}`);
+      return;
+    }
+
     try {
-      setError('');
-      await api.post('/admin/api-keys', {
+      setSaving(true);
+      setError(null);
+
+      const payload = {
         client_id: clientId,
-        ...formData,
-      });
-      handleCloseDialog();
-      loadAPIKeys();
+        exchange: formData.exchange,
+        api_key: formData.api_key,
+        api_secret: formData.api_secret,
+        passphrase: formData.passphrase || null,
+        label: formData.label || `${formData.exchange} API Key`,
+        is_testnet: formData.is_testnet,
+        notes: formData.notes || null
+      };
+
+      if (editingKey) {
+        await adminAPI.updateClientAPIKey(clientId, editingKey.id, payload);
+      } else {
+        await adminAPI.addClientAPIKey(clientId, payload);
+      }
+
+      await fetchClientAndKeys();
+      closeModal();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to add API key');
+      console.error('Failed to save API key:', err);
+      setError('Failed to save API key. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDelete = async (keyId) => {
-    if (!window.confirm('Are you sure you want to delete this API key?')) {
+    if (!window.confirm('Are you sure you want to delete this API key? This action cannot be undone.')) {
       return;
     }
+
     try {
-      await api.delete(`/admin/api-keys/${keyId}`);
-      loadAPIKeys();
+      await adminAPI.deleteClientAPIKey(clientId, keyId);
+      await fetchClientAndKeys();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to delete API key');
+      console.error('Failed to delete API key:', err);
+      setError('Failed to delete API key. Please try again.');
     }
   };
 
-  const handleViewKey = async (keyId) => {
-    try {
-      const response = await api.get(`/admin/api-keys/${keyId}`);
-      setSelectedKey(response.data);
-      setViewDialog(true);
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to view API key');
-    }
-  };
-
-  const handleVerify = async (keyId) => {
-    try {
-      await api.post(`/admin/api-keys/${keyId}/verify`);
-      loadAPIKeys();
-      alert('API key verified (placeholder - implement exchange verification)');
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to verify API key');
-    }
-  };
-
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text);
-    alert('Copied to clipboard');
-  };
-
-  const handleToggleActive = async (keyId, isActive) => {
-    try {
-      await api.put(`/admin/api-keys/${keyId}`, { is_active: !isActive });
-      loadAPIKeys();
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to update API key');
-    }
+  const maskKey = (key) => {
+    if (!key) return '••••••••';
+    if (key.length <= 8) return '••••••••';
+    return key.substring(0, 4) + '••••••••' + key.substring(key.length - 4);
   };
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 400 }}>
-        <CircularProgress />
-      </Box>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
     );
   }
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>
-          Exchange API Keys
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleOpenDialog}
+    <div className="p-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="mb-6">
+        <button
+          onClick={() => navigate(-1)}
+          className="text-gray-600 hover:text-gray-900 mb-4 flex items-center"
         >
-          Add API Key
-        </Button>
-      </Box>
+          ← Back
+        </button>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">API Keys Management</h1>
+            {client && (
+              <p className="text-gray-600 mt-1">
+                Managing exchange API keys for <span className="font-semibold">{client.name}</span>
+              </p>
+            )}
+          </div>
+          <button
+            onClick={openAddModal}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+          >
+            <span>+</span> Add API Key
+          </button>
+        </div>
+      </div>
 
+      {/* Error Message */}
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
           {error}
-        </Alert>
+        </div>
       )}
 
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Exchange</TableCell>
-              <TableCell>Label</TableCell>
-              <TableCell>API Key</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Network</TableCell>
-              <TableCell>Last Verified</TableCell>
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
+      {/* API Keys Table */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Exchange
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Label
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                API Key
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Type
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Created
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
             {apiKeys.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} align="center">
-                  <Typography variant="body2" color="text.secondary" sx={{ py: 4 }}>
-                    No API keys added yet. Click "Add API Key" to get started.
-                  </Typography>
-                </TableCell>
-              </TableRow>
+              <tr>
+                <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                  <div className="flex flex-col items-center">
+                    <svg className="h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                    <p className="text-lg font-medium">No API keys configured</p>
+                    <p className="text-sm text-gray-400 mt-1">Add exchange API keys to enable trading</p>
+                  </div>
+                </td>
+              </tr>
             ) : (
-              apiKeys.map((key) => (
-                <TableRow key={key.id}>
-                  <TableCell>
-                    <Chip
-                      label={key.exchange.toUpperCase()}
-                      size="small"
-                      color="primary"
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell>{key.label || '-'}</TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <code style={{ fontSize: '0.85rem' }}>{key.api_key_preview}</code>
-                      <Tooltip title="View full key">
-                        <IconButton size="small" onClick={() => handleViewKey(key.id)}>
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={key.is_active ? 'Active' : 'Inactive'}
-                      size="small"
-                      color={key.is_active ? 'success' : 'default'}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={key.is_testnet ? 'Testnet' : 'Mainnet'}
-                      size="small"
-                      color={key.is_testnet ? 'warning' : 'success'}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {key.last_verified_at
-                      ? new Date(key.last_verified_at).toLocaleDateString()
-                      : 'Never'}
-                  </TableCell>
-                  <TableCell align="right">
-                    <Tooltip title="Toggle Active/Inactive">
-                      <Switch
-                        checked={key.is_active}
-                        onChange={() => handleToggleActive(key.id, key.is_active)}
-                        size="small"
-                      />
-                    </Tooltip>
-                    <Tooltip title="Verify Key">
-                      <IconButton size="small" onClick={() => handleVerify(key.id)}>
-                        <VerifiedIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete">
-                      <IconButton size="small" onClick={() => handleDelete(key.id)} color="error">
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))
+              apiKeys.map((key) => {
+                const exchange = EXCHANGES.find(ex => ex.id === key.exchange);
+                return (
+                  <tr key={key.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="font-medium text-gray-900">
+                          {exchange?.name || key.exchange}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-700">
+                      {key.label || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-gray-600">
+                      {maskKey(key.api_key_preview)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        key.is_testnet 
+                          ? 'bg-yellow-100 text-yellow-800' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {key.is_testnet ? 'Testnet' : 'Mainnet'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        key.is_active 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {key.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {key.created_at ? new Date(key.created_at).toLocaleDateString() : '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => openEditModal(key)}
+                        className="text-indigo-600 hover:text-indigo-900 mr-4"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(key.id)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+          </tbody>
+        </table>
+      </div>
 
-      {/* Add API Key Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Add Exchange API Key</DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              select
-              label="Exchange"
-              value={formData.exchange}
-              onChange={(e) => setFormData({ ...formData, exchange: e.target.value })}
-              fullWidth
-            >
-              {EXCHANGE_GROUPS.map((group) => [
-                <ListSubheader key={group}>{group}</ListSubheader>,
-                ...getExchangesByGroup(group).map((ex) => (
-                  <MenuItem key={ex.value} value={ex.value}>
-                    {ex.label}
-                  </MenuItem>
-                ))
-              ])}
-            </TextField>
+      {/* Add/Edit Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {editingKey ? 'Edit API Key' : 'Add New API Key'}
+                </h2>
+                <button
+                  onClick={closeModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
 
-            <TextField
-              label="Label (Optional)"
-              value={formData.label}
-              onChange={(e) => setFormData({ ...formData, label: e.target.value })}
-              placeholder="e.g., Main Account, Futures"
-              fullWidth
-            />
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Exchange */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Exchange <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="exchange"
+                    value={formData.exchange}
+                    onChange={handleExchangeChange}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    required
+                    disabled={!!editingKey}
+                  >
+                    <option value="">Select an exchange</option>
+                    {EXCHANGES.map(ex => (
+                      <option key={ex.id} value={ex.id}>{ex.name}</option>
+                    ))}
+                  </select>
+                </div>
 
-            <TextField
-              label="API Key"
-              value={formData.api_key}
-              onChange={(e) => setFormData({ ...formData, api_key: e.target.value })}
-              required
-              fullWidth
-            />
+                {/* Label */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Label
+                  </label>
+                  <input
+                    type="text"
+                    name="label"
+                    value={formData.label}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Main Trading Account"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
 
-            <TextField
-              label="API Secret"
-              value={formData.api_secret}
-              onChange={(e) => setFormData({ ...formData, api_secret: e.target.value })}
-              type="password"
-              required
-              fullWidth
-            />
+                {/* API Key */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    API Key <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="api_key"
+                    value={formData.api_key}
+                    onChange={handleInputChange}
+                    placeholder={editingKey ? 'Enter new API key to update' : 'Enter API key'}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    required={!editingKey}
+                  />
+                </div>
 
-            {EXCHANGES.find(ex => ex.value === formData.exchange)?.passphrase && (
-              <TextField
-                label="Passphrase"
-                value={formData.passphrase}
-                onChange={(e) => setFormData({ ...formData, passphrase: e.target.value })}
-                type="password"
-                helperText={`Required for ${EXCHANGES.find(ex => ex.value === formData.exchange)?.label}`}
-                fullWidth
-              />
-            )}
+                {/* API Secret */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    API Secret <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    name="api_secret"
+                    value={formData.api_secret}
+                    onChange={handleInputChange}
+                    placeholder={editingKey ? 'Enter new secret to update' : 'Enter API secret'}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    required={!editingKey}
+                  />
+                </div>
 
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.is_testnet}
-                  onChange={(e) => setFormData({ ...formData, is_testnet: e.target.checked })}
-                />
-              }
-              label="Testnet"
-            />
+                {/* Passphrase (conditional) */}
+                {getSelectedExchange()?.requiresPassphrase && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {getSelectedExchange().passphraseLabel} <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      name="passphrase"
+                      value={formData.passphrase}
+                      onChange={handleInputChange}
+                      placeholder={`Enter ${getSelectedExchange().passphraseLabel.toLowerCase()}`}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      required={!editingKey}
+                    />
+                  </div>
+                )}
 
-            <TextField
-              label="Notes (Optional)"
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              multiline
-              rows={2}
-              fullWidth
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button
-            onClick={handleSubmit}
-            variant="contained"
-            disabled={!formData.api_key || !formData.api_secret}
-          >
-            Add API Key
-          </Button>
-        </DialogActions>
-      </Dialog>
+                {/* Testnet Toggle */}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    name="is_testnet"
+                    id="is_testnet"
+                    checked={formData.is_testnet}
+                    onChange={handleInputChange}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="is_testnet" className="ml-2 block text-sm text-gray-700">
+                    This is a testnet/sandbox API key
+                  </label>
+                </div>
 
-      {/* View API Key Dialog */}
-      <Dialog open={viewDialog} onClose={() => setViewDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>API Key Details</DialogTitle>
-        <DialogContent>
-          {selectedKey && (
-            <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Alert severity="warning">
-                <strong>Security Warning:</strong> Keep these credentials secure. Never share them.
-              </Alert>
-
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  API Key
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <code style={{ fontSize: '0.9rem', wordBreak: 'break-all' }}>
-                    {selectedKey.api_key}
-                  </code>
-                  <IconButton size="small" onClick={() => handleCopy(selectedKey.api_key)}>
-                    <CopyIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-              </Box>
-
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  API Secret
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <code style={{ fontSize: '0.9rem', wordBreak: 'break-all' }}>
-                    {selectedKey.api_secret}
-                  </code>
-                  <IconButton size="small" onClick={() => handleCopy(selectedKey.api_secret)}>
-                    <CopyIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-              </Box>
-
-              {selectedKey.passphrase && (
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Passphrase
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <code style={{ fontSize: '0.9rem', wordBreak: 'break-all' }}>
-                      {selectedKey.passphrase}
-                    </code>
-                    <IconButton size="small" onClick={() => handleCopy(selectedKey.passphrase)}>
-                      <CopyIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                </Box>
-              )}
-
-              {selectedKey.notes && (
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                {/* Notes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Notes
-                  </Typography>
-                  <Typography variant="body2">{selectedKey.notes}</Typography>
-                </Box>
-              )}
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setViewDialog(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+                  </label>
+                  <textarea
+                    name="notes"
+                    value={formData.notes}
+                    onChange={handleInputChange}
+                    rows="2"
+                    placeholder="Optional notes about this API key"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+
+                {/* Security Notice */}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+                  <strong>Security:</strong> API keys are encrypted before storage. Never share your API secret or passphrase.
+                </div>
+
+                {/* Submit Buttons */}
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {saving ? 'Saving...' : (editingKey ? 'Update API Key' : 'Add API Key')}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
-}
+};
+
+export default APIKeysManagement;

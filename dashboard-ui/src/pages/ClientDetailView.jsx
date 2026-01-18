@@ -21,11 +21,14 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Avatar
+  Avatar,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useParams, useNavigate } from 'react-router-dom';
 import { adminAPI } from '../services/api';
+import APIKeysManagement from './APIKeysManagement';
 
 export default function ClientDetailView() {
   const { clientId } = useParams();
@@ -35,6 +38,7 @@ export default function ClientDetailView() {
   const [clientData, setClientData] = useState(null);
   const [selectedToken, setSelectedToken] = useState('all');
   const [selectedExchange, setSelectedExchange] = useState('all');
+  const [activeTab, setActiveTab] = useState(0);
 
   const loadClientData = useCallback(async () => {
     setLoading(true);
@@ -232,12 +236,24 @@ export default function ClientDetailView() {
         </Grid>
       </Grid>
 
-      {/* Token Performance Summary */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Token Performance
-          </Typography>
+      {/* Tabs for different sections */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+          <Tab label="Trading Overview" />
+          <Tab label="API Keys" />
+          <Tab label="Settings" />
+        </Tabs>
+      </Box>
+
+      {/* Tab Content */}
+      {activeTab === 0 && (
+        <>
+          {/* Token Performance Summary */}
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Token Performance
+              </Typography>
           <Grid container spacing={2}>
             {getTokenPerformance().map((token, idx) => (
               <Grid item xs={12} md={6} lg={4} key={idx}>
@@ -521,51 +537,59 @@ export default function ClientDetailView() {
           </TableContainer>
         </CardContent>
       </Card>
+        </>
+      )}
 
-      <Divider sx={{ my: 3 }} />
+      {/* API Keys Tab */}
+      {activeTab === 1 && (
+        <APIKeysManagement />
+      )}
 
-      {/* Client Settings */}
-      <Card>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Client Configuration
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <Typography variant="body2" color="text.secondary">
-                Max Spread
-              </Typography>
-              <Typography variant="body1">
-                {clientData.client.settings.maxSpread}%
-              </Typography>
+      {/* Settings Tab */}
+      {activeTab === 2 && (
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Client Settings
+            </Typography>
+            <Divider sx={{ my: 2 }} />
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="body2" color="text.secondary">
+                  Max Spread
+                </Typography>
+                <Typography variant="body1">
+                  {clientData.client.settings.maxSpread}%
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="body2" color="text.secondary">
+                  Max Daily Volume
+                </Typography>
+                <Typography variant="body1">
+                  {formatCurrency(clientData.client.settings.maxDailyVolume)}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="body2" color="text.secondary">
+                  Projects
+                </Typography>
+                <Typography variant="body1">
+                  {clientData.client.projects}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="body2" color="text.secondary">
+                  Tokens
+                </Typography>
+                <Typography variant="body1">
+                  {clientData.client.tokens}
+                </Typography>
+              </Grid>
             </Grid>
-            <Grid item xs={12} md={6}>
-              <Typography variant="body2" color="text.secondary">
-                Max Daily Volume
-              </Typography>
-              <Typography variant="body1">
-                {formatCurrency(clientData.client.settings.maxDailyVolume)}
-              </Typography>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Typography variant="body2" color="text.secondary">
-                Projects
-              </Typography>
-              <Typography variant="body1">
-                {clientData.client.projects}
-              </Typography>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Typography variant="body2" color="text.secondary">
-                Tokens
-              </Typography>
-              <Typography variant="body1">
-                {clientData.client.tokens}
-              </Typography>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </Box>
   );
 }

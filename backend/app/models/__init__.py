@@ -10,6 +10,7 @@ from app.models.models import (
     AgentChat,
     Alert,
     Invoice,
+    ExchangeAPIKey,
     ClientStatus,
     BotType,
     PairStatus,
@@ -24,6 +25,7 @@ from app.models.models import (
     BillingPlan,
     InvoiceStatus,
     PaymentMethod,
+    Exchange,
 )
 from app.models.user import User, Admin
 
@@ -36,6 +38,7 @@ __all__ = [
     "AgentChat",
     "Alert",
     "Invoice",
+    "ExchangeAPIKey",
     "ClientStatus",
     "BotType",
     "PairStatus",
@@ -50,6 +53,7 @@ __all__ = [
     "BillingPlan",
     "InvoiceStatus",
     "PaymentMethod",
+    "Exchange",
     "User",
     "Admin",
 ]

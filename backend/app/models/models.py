@@ -48,6 +48,17 @@ class PaymentMethod(str, PyEnum):
     MANUAL = "manual"
 
 
+class Exchange(str, PyEnum):
+    BINANCE = "binance"
+    BYBIT = "bybit"
+    OKX = "okx"
+    KUCOIN = "kucoin"
+    GATEIO = "gateio"
+    HUOBI = "huobi"
+    KRAKEN = "kraken"
+    COINBASE = "coinbase"
+
+
 class BotType(str, PyEnum):
     SPREAD = "spread"
     VOLUME = "volume"
@@ -142,6 +153,7 @@ class Client(Base):
     chats: Mapped[List["AgentChat"]] = relationship(back_populates="client", cascade="all, delete-orphan")
     alerts: Mapped[List["Alert"]] = relationship(back_populates="client", cascade="all, delete-orphan")
     invoices: Mapped[List["Invoice"]] = relationship(back_populates="client", cascade="all, delete-orphan")
+    api_keys: Mapped[List["ExchangeAPIKey"]] = relationship(back_populates="client", cascade="all, delete-orphan")
 
 
 class ClientExchange(Base):
@@ -287,3 +299,34 @@ class Invoice(Base):
 
     # Relationships
     client: Mapped["Client"] = relationship(back_populates="invoices")
+
+
+class ExchangeAPIKey(Base):
+    """Exchange API keys for clients (encrypted)"""
+    __tablename__ = "exchange_api_keys"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    client_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clients.id"), nullable=False)
+    
+    # Exchange info
+    exchange: Mapped[Exchange] = mapped_column(Enum(Exchange), nullable=False)
+    label: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # e.g., "Main Account", "Futures"
+    
+    # Encrypted credentials
+    api_key_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
+    api_secret_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
+    passphrase_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # For OKX, KuCoin
+    
+    # Permissions & settings
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_testnet: Mapped[bool] = mapped_column(Boolean, default=False)
+    permissions: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # trading, withdrawal, etc.
+    
+    # Metadata
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Relationships
+    client: Mapped["Client"] = relationship(back_populates="api_keys")

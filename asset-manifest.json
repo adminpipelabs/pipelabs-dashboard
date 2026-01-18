@@ -1,16 +1,16 @@
 {
   "files": {
     "main.css": "/pipelabs-dashboard/static/css/main.e6c13ad2.css",
-    "main.js": "/pipelabs-dashboard/static/js/main.8234c903.js",
+    "main.js": "/pipelabs-dashboard/static/js/main.ca19d5f4.js",
     "static/js/488.c3138adf.chunk.js": "/pipelabs-dashboard/static/js/488.c3138adf.chunk.js",
     "service-worker.js": "/pipelabs-dashboard/service-worker.js",
     "index.html": "/pipelabs-dashboard/index.html",
     "main.e6c13ad2.css.map": "/pipelabs-dashboard/static/css/main.e6c13ad2.css.map",
-    "main.8234c903.js.map": "/pipelabs-dashboard/static/js/main.8234c903.js.map",
+    "main.ca19d5f4.js.map": "/pipelabs-dashboard/static/js/main.ca19d5f4.js.map",
     "488.c3138adf.chunk.js.map": "/pipelabs-dashboard/static/js/488.c3138adf.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.e6c13ad2.css",
-    "static/js/main.8234c903.js"
+    "static/js/main.ca19d5f4.js"
   ]
 }

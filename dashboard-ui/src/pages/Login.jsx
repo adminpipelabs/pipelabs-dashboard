@@ -123,27 +123,25 @@ export default function Login() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: (theme) =>
-          theme.palette.mode === 'dark'
-            ? 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)'
-            : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #0066FF 0%, #00D9FF 100%)',
       }}
     >
       <Card
         sx={{
-          maxWidth: 480,
+          maxWidth: 450,
           width: '100%',
           mx: 2,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
         }}
       >
-        <CardContent sx={{ p: 4 }}>
+        <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
           {/* Header */}
           <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Typography variant="h4" gutterBottom fontWeight="bold">
-              Pipe Labs Dashboard
+            <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: 'primary.main' }}>
+              Pipe Labs
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Multi-tenant trading platform with AI integration
+              Professional Digital Asset Trading
             </Typography>
           </Box>
 

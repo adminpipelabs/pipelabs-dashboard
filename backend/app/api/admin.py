@@ -210,4 +210,7 @@ async def get_client(
         status=client.status.value,
         created_at=client.created_at.isoformat(),
         bots_count=bots_count,
-        volume_24h=float(latest_pnl.volume_24h) if latest_pnl
+        volume_24h=float(latest_pnl.volume_24h) if latest_pnl else 0.0,
+        pnl_24h=float(latest_pnl.realized_pnl) if latest_pnl else 0.0,
+        active_pairs=active_pairs
+    )

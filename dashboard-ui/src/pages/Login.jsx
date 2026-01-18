@@ -13,6 +13,7 @@ import {
   Tabs,
   InputAdornment,
   IconButton,
+  Link,
 } from '@mui/material';
 import {
   Visibility,
@@ -21,7 +22,7 @@ import {
   Email as EmailIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link as RouterLink } from 'react-router-dom';
 import WalletConnect from '../components/WalletConnect';
 
 export default function Login() {
@@ -236,7 +237,10 @@ export default function Login() {
               </Button>
 
               <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: 'center' }}>
-                Don't have an account? <a href="/register" style={{ color: '#667eea', textDecoration: 'none' }}>Sign up now</a>
+                Don't have an account?{' '}
+                <Link component={RouterLink} to="/register" underline="hover" sx={{ color: '#667eea', fontWeight: 'bold' }}>
+                  Sign up now
+                </Link>
               </Typography>
             </form>
           )}

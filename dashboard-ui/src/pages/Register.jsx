@@ -148,22 +148,22 @@ export default function Register() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #0066FF 0%, #00D9FF 100%)',
-        padding: 2,
+        bgcolor: 'background.default',
+        py: 3,
       }}
     >
-      <Card sx={{ maxWidth: 700, width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
-        <CardContent sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
+      <Card sx={{ maxWidth: 680, width: '100%', mx: 2 }}>
+        <CardContent sx={{ p: 4 }}>
           <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: 'primary.main' }}>
+            <Typography variant="h4" sx={{ fontWeight: 600, mb: 0.5, color: 'text.primary' }}>
               Join Pipe Labs
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Professional market making services for digital assets
+              Start your market making journey
             </Typography>
           </Box>
 
-          <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
+          <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
             {steps.map((label) => (
               <Step key={label}>
                 <StepLabel>{label}</StepLabel>

@@ -123,25 +123,24 @@ export default function Login() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #0066FF 0%, #00D9FF 100%)',
+        bgcolor: 'background.default',
       }}
     >
       <Card
         sx={{
-          maxWidth: 450,
+          maxWidth: 420,
           width: '100%',
           mx: 2,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
         }}
       >
-        <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+        <CardContent sx={{ p: 4 }}>
           {/* Header */}
-          <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Typography variant="h4" sx={{ fontWeight: 700, mb: 1, color: 'primary.main' }}>
+          <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Typography variant="h4" sx={{ fontWeight: 600, mb: 0.5, color: 'text.primary' }}>
               Pipe Labs
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Professional Digital Asset Trading
+              Sign in to your account
             </Typography>
           </Box>
 

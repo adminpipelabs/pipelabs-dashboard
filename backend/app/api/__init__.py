@@ -1,6 +1,6 @@
 """
 API routes
 """
-from app.api import auth, clients, bots, orders, agent, admin, billing, api_keys
+from app.api import auth, clients, bots, orders, agent, admin, billing, api_keys, agent_chat
 
-__all__ = ["auth", "clients", "bots", "orders", "agent", "admin", "billing", "api_keys"]
+__all__ = ["auth", "clients", "bots", "orders", "agent", "admin", "billing", "api_keys", "agent_chat"]

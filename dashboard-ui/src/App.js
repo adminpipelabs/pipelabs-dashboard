@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
-import { Dashboard, Portfolio, Orders, Bots, Agent } from './pages';
+import { Portfolio, Orders, Bots, Agent } from './pages';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Reports from './pages/Reports';
+import ClientDashboard from './pages/ClientDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import ClientManagement from './pages/ClientManagement';
 import TokenManagement from './pages/TokenManagement';

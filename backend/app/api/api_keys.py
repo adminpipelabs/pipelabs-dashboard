@@ -13,6 +13,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_admin
 from app.core.encryption import encrypt_api_key, decrypt_api_key
 from app.models import ExchangeAPIKey, Exchange, Client, User
+from app.services.hummingbot import hummingbot_service
 
 router = APIRouter()
 
@@ -97,6 +98,19 @@ async def create_api_key(
     db.add(api_key)
     await db.commit()
     await db.refresh(api_key)
+    
+    # Configure Hummingbot account with these keys
+    try:
+        hbot_result = await hummingbot_service.configure_client_account(
+            client_id=str(client.id),
+            client_name=client.name,
+            api_key_record=api_key
+        )
+        if not hbot_result.get("success"):
+            # Log error but don't fail the API key creation
+            print(f"Warning: Failed to configure Hummingbot: {hbot_result.get('error')}")
+    except Exception as e:
+        print(f"Warning: Hummingbot configuration error: {e}")
     
     # Return response with preview only
     api_key_preview = f"{data.api_key[:6]}...{data.api_key[-4:]}" if len(data.api_key) > 10 else "***"

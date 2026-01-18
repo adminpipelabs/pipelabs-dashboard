@@ -36,10 +36,9 @@ class Settings(BaseSettings):
     ]
     
     # Hummingbot API
-    HUMMINGBOT_API_HOST: str = "localhost"
-    HUMMINGBOT_API_PORT: int = 8000
-    HUMMINGBOT_API_USERNAME: str = "admin"
-    HUMMINGBOT_API_PASSWORD: str = "admin"
+    HUMMINGBOT_API_URL: str = "http://localhost:8080"
+    HUMMINGBOT_API_USERNAME: str = ""
+    HUMMINGBOT_API_PASSWORD: str = ""
     
     # Claude API
     ANTHROPIC_API_KEY: str = ""

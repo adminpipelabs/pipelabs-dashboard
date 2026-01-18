@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, clients, bots, orders, agent, admin, billing, api_keys
+from app.api import auth, clients, bots, orders, agent, admin, billing, api_keys, agent_chat
 from app.core.config import settings
 from app.core.database import engine, Base
 
@@ -46,6 +46,7 @@ app.include_router(orders.router, prefix="/api/orders", tags=["Orders"])
 app.include_router(agent.router, prefix="/api/agent", tags=["Agent"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(api_keys.router, prefix="/api/admin", tags=["API Keys"])
+app.include_router(agent_chat.router, prefix="/api/agent", tags=["Agent Chat"])
 
 
 @app.get("/health")

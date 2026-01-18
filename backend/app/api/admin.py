@@ -3,6 +3,8 @@ Admin API routes
 """
 from typing import Annotated, List, Optional
 from uuid import UUID
+import secrets
+import string
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +33,9 @@ class AdminOverview(BaseModel):
 class ClientCreate(BaseModel):
     name: str
     email: EmailStr
-    password: str
+    password: Optional[str] = None  # Auto-generate if not provided
+    status: Optional[str] = "Active"
+    tier: Optional[str] = "Standard"
 
 
 class ClientUpdate(BaseModel):
@@ -155,12 +159,27 @@ async def create_client(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
     
+    # Auto-generate password if not provided
+    password = client_data.password
+    if not password:
+        # Generate a random 16-character password
+        alphabet = string.ascii_letters + string.digits
+        password = ''.join(secrets.choice(alphabet) for _ in range(16))
+    
+    # Parse status
+    status_value = ClientStatus.ACTIVE
+    if client_data.status:
+        try:
+            status_value = ClientStatus[client_data.status.upper()]
+        except KeyError:
+            status_value = ClientStatus.ACTIVE
+    
     client = Client(
         name=client_data.name,
         email=client_data.email,
-        password_hash=get_password_hash(client_data.password),
+        password_hash=get_password_hash(password),
         role=UserRole.CLIENT,
-        status=ClientStatus.ACTIVE
+        status=status_value
     )
     db.add(client)
     await db.commit()

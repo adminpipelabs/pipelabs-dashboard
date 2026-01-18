@@ -29,7 +29,11 @@ class Settings(BaseSettings):
     ENCRYPTION_KEY: str = "your-fernet-key-change-in-production"
     
     # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "https://adminpipelabs.github.io"
+    ]
     
     # Hummingbot API
     HUMMINGBOT_API_HOST: str = "localhost"

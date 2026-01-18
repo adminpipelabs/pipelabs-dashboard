@@ -52,7 +52,7 @@ app.include_router(agent_chat.router, prefix="/api/agent", tags=["Agent Chat"])
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "version": "0.1.0"}
+    return {"status": "healthy", "version": "0.1.1-fixed"}
 
 
 @app.get("/")

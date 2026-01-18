@@ -13,7 +13,7 @@ const USE_MOCK = false;
  */
 async function apiCall(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
-  const token = localStorage.getItem('auth-token'); // JWT token if available
+  const token = localStorage.getItem('access_token'); // JWT token - matches Login.jsx
   
   const config = {
     ...options,

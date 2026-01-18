@@ -104,7 +104,7 @@ function Layout() {
       >
         <Toolbar />
         <Routes>
-          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/" element={<ProtectedRoute><ClientDashboard /></ProtectedRoute>} />
           <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
           <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
           <Route path="/bots" element={<ProtectedRoute><Bots /></ProtectedRoute>} />

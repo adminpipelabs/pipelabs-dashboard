@@ -9,6 +9,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import ClientManagement from './pages/ClientManagement';
 import TokenManagement from './pages/TokenManagement';
 import ClientDetailView from './pages/ClientDetailView';
+import APIKeysManagement from './pages/APIKeysManagement';
 import { Box, Drawer, List, ListItem, ListItemText, Toolbar, Divider, ListSubheader, Fab, Tooltip } from '@mui/material';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import Header from './Header';
@@ -113,6 +114,7 @@ function Layout() {
           <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/clients" element={<ProtectedRoute><ClientManagement /></ProtectedRoute>} />
           <Route path="/admin/clients/:clientId" element={<ProtectedRoute><ClientDetailView /></ProtectedRoute>} />
+        <Route path="/admin/clients/:clientId/api-keys" element={<ProtectedRoute><APIKeysManagement /></ProtectedRoute>} />
           <Route path="/admin/tokens" element={<ProtectedRoute><TokenManagement /></ProtectedRoute>} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />

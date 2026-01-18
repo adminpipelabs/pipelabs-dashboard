@@ -10,7 +10,7 @@ from datetime import datetime
 import uuid
 
 from app.core.database import get_db
-from app.core.auth import get_current_admin
+from app.api.auth import get_current_admin, get_current_user
 from app.core.encryption import encrypt_api_key, decrypt_api_key
 from app.models import ExchangeAPIKey, Exchange, Client, User
 from app.services.hummingbot import hummingbot_service

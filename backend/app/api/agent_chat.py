@@ -10,7 +10,7 @@ from typing import List, Optional, Dict, Any
 import uuid
 
 from app.core.database import get_db
-from app.core.auth import get_current_user
+from app.api.auth import get_current_user
 from app.models import User, Client, ExchangeAPIKey
 from app.services.agent import scoped_agent_service, ClientScope
 

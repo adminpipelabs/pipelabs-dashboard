@@ -1,23 +1,30 @@
-"""
-Admin API routes
-"""
+"""Admin API routes"""
 from typing import Annotated, List, Optional
 from uuid import UUID
+
 import secrets
 import string
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_
 
 from app.core.database import get_db
 from app.core.security import get_password_hash, encrypt_api_key
 from app.api.auth import get_current_admin
 from app.models.user import User
 from app.models import (
-    Client, ClientExchange, ClientPair, Alert, Order, PnLSnapshot,
-    ClientStatus, BotType, PairStatus, UserRole
+    Client,
+    ClientExchange,
+    ClientPair,
+    Alert,
+    Order,
+    PnLSnapshot,
+    ClientStatus,
+    BotType,
+    PairStatus,
+    UserRole
 )
 
 router = APIRouter()
@@ -63,20 +70,32 @@ async def get_admin_overview(
         db: AsyncSession = Depends(get_db)
 ):
         """Get admin overview"""
-        clients_result = await db.execute(
-            select(func.count(Client.id)).where(Client.status == ClientStatus.ACTIVE)
+        try:
+                    clients_result = await db.execute(
+                                    select(func.count(Client.id)).where(
+                                                        Client.status == ClientStatus.ACTIVE
+                                    )
+                    )
+                    active_clients = clients_result.scalar() or 0
+
+            bots_result = await db.execute(
+                            select(func.count(ClientPair.id))
+            )
+        total_bots = bots_result.scalar() or 0
+
+        return AdminOverview(
+                        active_clients=active_clients,
+                        total_bots=total_bots,
+                        volume_24h=0.0,
+                        revenue_estimate=0.0
         )
-        active_clients = clients_result.scalar() or 0
-
-    bots_result = await db.execute(select(func.count(ClientPair.id)))
-    total_bots = bots_result.scalar() or 0
-
-    return AdminOverview(
-                active_clients=active_clients,
-                total_bots=total_bots,
-                volume_24h=0.0,
-                revenue_estimate=0.0
-    )
+except Exception as e:
+        return AdminOverview(
+                        active_clients=0,
+                        total_bots=0,
+                        volume_24h=0.0,
+                        revenue_estimate=0.0
+        )
 
 
 @router.get("/dashboard", response_model=AdminOverview)
@@ -85,20 +104,32 @@ async def get_dashboard(
         db: AsyncSession = Depends(get_db)
 ):
         """Get admin dashboard"""
-        clients_result = await db.execute(
-            select(func.count(Client.id)).where(Client.status == ClientStatus.ACTIVE)
+    try:
+                clients_result = await db.execute(
+                                select(func.count(Client.id)).where(
+                                                    Client.status == ClientStatus.ACTIVE
+                                )
+                )
+                active_clients = clients_result.scalar() or 0
+
+        bots_result = await db.execute(
+                        select(func.count(ClientPair.id))
         )
-        active_clients = clients_result.scalar() or 0
+        total_bots = bots_result.scalar() or 0
 
-    bots_result = await db.execute(select(func.count(ClientPair.id)))
-    total_bots = bots_result.scalar() or 0
-
-    return AdminOverview(
-                active_clients=active_clients,
-                total_bots=total_bots,
-                volume_24h=0.0,
-                revenue_estimate=0.0
-    )
+        return AdminOverview(
+                        active_clients=active_clients,
+                        total_bots=total_bots,
+                        volume_24h=0.0,
+                        revenue_estimate=0.0
+        )
+except Exception as e:
+        return AdminOverview(
+                        active_clients=0,
+                        total_bots=0,
+                        volume_24h=0.0,
+                        revenue_estimate=0.0
+        )
 
 
 @router.get("/tokens", response_model=List[str])
@@ -107,9 +138,14 @@ async def get_tokens(
         db: AsyncSession = Depends(get_db)
 ):
         """Get list of all API tokens"""
-        result = await db.execute(select(User.api_key).where(User.api_key != None))
-        tokens = [str(token) for token in result.scalars().all() if token]
-        return tokens
+    try:
+                result = await db.execute(
+                                select(User.api_key).where(User.api_key != None)
+                )
+                tokens = [str(token) for token in result.scalars().all() if token]
+                return tokens
+except Exception:
+        return []
 
 
 @router.get("/clients", response_model=List[ClientDetail])
@@ -118,35 +154,43 @@ async def list_clients(
         db: AsyncSession = Depends(get_db)
 ):
         """List all clients"""
-        result = await db.execute(
-            select(Client).where(Client.role == UserRole.CLIENT)
-        )
-        clients = result.scalars().all()
+        try:
+                    result = await db.execute(
+                                    select(Client).where(Client.role == UserRole.CLIENT)
+                    )
+                    clients = result.scalars().all()
 
-    client_details = []
-    for client in clients:
-                bots_result = await db.execute(
-                                select(func.count(ClientPair.id)).where(ClientPair.client_id == client.id)
-                )
-                bots_count = bots_result.scalar() or 0
+            client_details = []
+        for client in clients:
+                        bots_result = await db.execute(
+                                            select(func.count(ClientPair.id)).where(
+                                                                    ClientPair.client_id == client.id
+                                            )
+                        )
+                        bots_count = bots_result.scalar() or 0
 
-        pnl_result = await db.execute(
-                        select(PnLSnapshot)
-                        .where(PnLSnapshot.client_id == client.id)
-                        .order_by(PnLSnapshot.timestamp.desc())
-                        .limit(1)
-        )
-        latest_pnl = pnl_result.scalar_one_or_none()
+            pnl_result = await db.execute(
+                                select(PnLSnapshot).where(
+                                                        PnLSnapshot.client_id == client.id
+                                ).order_by(
+                                                        PnLSnapshot.timestamp.desc()
+                                ).limit(1)
+            )
+            latest_pnl = pnl_result.scalar_one_or_none()
 
-        client_details.append(ClientDetail(
-                        id=str(client.id),
-                        name=client.name,
-                        email=client.email,
-                        status=client.status.value,
-                        created_at=client.created_at.isoformat(),
-                        bots_count=bots_count,
-                        volume_24h=float(latest_pnl.volume_24h) if latest_pnl else 0.0,
-                        pnl_24h=float(latest_pnl.realized_pnl) if latest_pnl else 0.0
-        ))
+            client_details.append(
+                                ClientDetail(
+                                                        id=str(client.id),
+                                                        name=client.name,
+                                                        email=client.email,
+                                                        status=client.status.value,
+                                                        created_at=client.created_at.isoformat(),
+                                                        bots_count=bots_count,
+                                                        volume_24h=float(latest_pnl.volume_24h) if latest_pnl else 0.0,
+                                                        pnl_24h=float(latest_pnl.realized_pnl) if latest_pnl else 0.0
+                                )
+            )
 
-    return client_details
+        return client_details
+except Exception as e:
+        return []

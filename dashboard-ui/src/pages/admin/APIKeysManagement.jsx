@@ -21,7 +21,7 @@ export default function APIKeysManagement() {
   const fetchApiKeys = async () => {
         try {
                 setLoading(true);
-                const response = await fetch('/api/admin/api-keys');
+                const response = await fetch('https://pipelabs-dashboard-production.up.railway.app/api/admin/api-keys');
                 const data = await response.json();
                 setApiKeys(data);
         } catch (error) {
@@ -33,7 +33,7 @@ export default function APIKeysManagement() {
 
   const handleAddKey = async () => {
         try {
-                const response = await fetch('/api/admin/api-keys', {
+                const response = await fetch('https://pipelabs-dashboard-production.up.railway.app/api/admin/api-keys', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify(formData),
@@ -52,7 +52,7 @@ export default function APIKeysManagement() {
   const handleRevokeKey = async (keyId) => {
         if (window.confirm('Are you sure you want to revoke this API key?')) {
                 try {
-                          await fetch(`/api/admin/api-keys/${keyId}`, {
+                          await fetch(`https://pipelabs-dashboard-production.up.railway.app/api/admin/api-keys/${keyId}`, {
                                       method: 'PATCH',
                                       headers: { 'Content-Type': 'application/json' },
                                       body: JSON.stringify({ status: 'revoked' }),
@@ -67,7 +67,7 @@ export default function APIKeysManagement() {
   const handleDeleteKey = async (keyId) => {
         if (window.confirm('This action cannot be undone. Delete this API key?')) {
                 try {
-                          await fetch(`/api/admin/api-keys/${keyId}`, {
+                          await fetch(`https://pipelabs-dashboard-production.up.railway.app/api/admin/api-keys/${keyId}`, {
                                       method: 'DELETE',
                           });
                           fetchApiKeys();

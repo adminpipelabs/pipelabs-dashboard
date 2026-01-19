@@ -1,6 +1,6 @@
-""""
+"""
 Pipe Labs Dashboard - Main FastAPI Application
-""""
+"""
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -13,26 +13,25 @@ from app.core.database import engine, Base
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-                """Startup and shutdown events"""
-                # Startup
-                async with engine.begin() as conn:
-                                    await conn.run_sync(Base.metadata.create_all)
-                                yield
+      """Startup and shutdown events"""
+      # Startup
+      async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            yield
     # Shutdown
     await engine.dispose()
 
 
-# Create FastAPI app
 app = FastAPI(lifespan=lifespan)
 
 # Add CORS middleware
 app.add_middleware(
-                CORSMiddleware,
-                allow_origins=settings.CORS_ORIGINS,
-                allow_credentials=True,
-                allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-                allow_headers=["*"],
-                max_age=3600,
+      CORSMiddleware,
+      allow_origins=settings.CORS_ORIGINS,
+      allow_credentials=True,
+      allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+      allow_headers=["*"],
+      max_age=3600,
 )
 
 # Include routers
@@ -49,5 +48,5 @@ app.include_router(agent_chat.router, prefix="/api")
 
 @app.get("/health")
 async def health_check():
-                """"Health check endpoint""""
+      """Health check endpoint"""
     return {"status": "healthy", "version": "1.0"}

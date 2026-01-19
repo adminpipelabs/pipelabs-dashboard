@@ -15,11 +15,12 @@ from app.core.security import get_password_hash, encrypt_api_key
 from app.api.auth import get_current_admin
 from app.models.user import User
 from app.models import (
-    Client, ClientExchange, ClientPair, Alert, Order, PnlSnapshot,
+    Client, ClientExchange, ClientPair, Alert, Order, PnLSnapshot,
     ClientStatus, BotType, PairStatus, UserRole
 )
 
 router = APIRouter()
+
 
 # Schemas
 class AdminOverview(BaseModel):
@@ -28,6 +29,7 @@ class AdminOverview(BaseModel):
         volume_24h: float
         revenue_estimate: float
 
+
 class ClientCreate(BaseModel):
         name: str
         email: EmailStr
@@ -35,10 +37,12 @@ class ClientCreate(BaseModel):
         status: Optional[str] = "Active"
         tier: Optional[str] = "Standard"
 
+
 class ClientUpdate(BaseModel):
         name: Optional[str] = None
         email: Optional[EmailStr] = None
         status: Optional[str] = None
+
 
 class ClientDetail(BaseModel):
         id: str
@@ -49,7 +53,7 @@ class ClientDetail(BaseModel):
         bots_count: int
         volume_24h: float
         pnl_24h: float
-        active_pairs: int
+
 
 class ExchangeCreate(BaseModel):
         exchange: str
@@ -57,6 +61,7 @@ class ExchangeCreate(BaseModel):
         api_key: str
         api_secret: str
         extra: Optional[str] = None
+
 
 class PairCreate(BaseModel):
         exchange: str
@@ -67,33 +72,30 @@ class PairCreate(BaseModel):
         config_name: Optional[str] = None
 
 
-# Dashboard endpoint - returns admin dashboard statistics
+# Routes
 @router.get("/dashboard", response_model=AdminOverview)
 async def get_dashboard(
         current_admin: Annotated[User, Depends(get_current_admin)],
         db: AsyncSession = Depends(get_db)
 ):
         """Get admin dashboard overview with stats"""
-        # Get active clients count
         clients_result = await db.execute(
             select(func.count(Client.id)).where(Client.status == ClientStatus.ACTIVE)
         )
         active_clients = clients_result.scalar() or 0
 
-    # Get total bots count
-        bots_result = await db.execute(
-            select(func.count(ClientPair.id))
-        )
-        total_bots = bots_result.scalar() or 0
+    bots_result = await db.execute(
+                select(func.count(ClientPair.id))
+    )
+    total_bots = bots_result.scalar() or 0
 
-    # Get 24h volume from latest PnL snapshot
-        pnl_result = await db.execute(
-            select(PnlSnapshot)
-            .order_by(PnlSnapshot.timestamp.desc())
-            .limit(1)
-        )
-        latest_pnl = pnl_result.scalar_one_or_none()
-        volume_24h = float(latest_pnl.volume_24h) if latest_pnl else 0.0
+    pnl_result = await db.execute(
+                select(PnLSnapshot)
+                .order_by(PnLSnapshot.timestamp.desc())
+                .limit(1)
+    )
+    latest_pnl = pnl_result.scalar_one_or_none()
+    volume_24h = float(latest_pnl.volume_24h) if latest_pnl else 0.0
 
     return AdminOverview(
                 active_clients=active_clients,
@@ -103,7 +105,6 @@ async def get_dashboard(
     )
 
 
-# Tokens endpoint - returns list of all API tokens
 @router.get("/tokens", response_model=List[str])
 async def get_tokens(
         current_admin: Annotated[User, Depends(get_current_admin)],
@@ -115,7 +116,6 @@ async def get_tokens(
         return tokens
 
 
-# List all clients
 @router.get("/clients", response_model=List[ClientDetail])
 async def list_clients(
         current_admin: Annotated[User, Depends(get_current_admin)],
@@ -135,9 +135,9 @@ async def list_clients(
                 bots_count = bots_result.scalar() or 0
 
         pnl_result = await db.execute(
-            select(PnlSnapshot)
-                        .where(PnlSnapshot.client_id == client.id)
-                        .order_by(PnlSnapshot.timestamp.desc())
+                        select(PnLSnapshot)
+                        .where(PnLSnapshot.client_id == client.id)
+                        .order_by(PnLSnapshot.timestamp.desc())
                         .limit(1)
         )
         latest_pnl = pnl_result.scalar_one_or_none()
@@ -150,8 +150,45 @@ async def list_clients(
                         created_at=client.created_at.isoformat(),
                         bots_count=bots_count,
                         volume_24h=float(latest_pnl.volume_24h) if latest_pnl else 0.0,
-                        pnl_24h=float(latest_pnl.realized_pnl) if latest_pnl else 0.0,
-                        active_pairs=0
+                        pnl_24h=float(latest_pnl.realized_pnl) if latest_pnl else 0.0
         ))
 
     return client_details
+
+
+@router.get("/clients/{client_id}", response_model=ClientDetail)
+async def get_client(
+        client_id: UUID,
+        current_admin: Annotated[User, Depends(get_current_admin)],
+        db: AsyncSession = Depends(get_db)
+):
+        """Get client details"""
+        result = await db.execute(select(Client).where(Client.id == client_id))
+        client = result.scalar_one_or_none()
+
+    if not client:
+                raise HTTPException(status_code=404, detail="Client not found")
+
+    bots_result = await db.execute(
+                select(func.count(ClientPair.id)).where(ClientPair.client_id == client.id)
+    )
+    bots_count = bots_result.scalar() or 0
+
+    pnl_result = await db.execute(
+                select(PnLSnapshot)
+                .where(PnLSnapshot.client_id == client.id)
+                .order_by(PnLSnapshot.timestamp.desc())
+                .limit(1)
+    )
+    latest_pnl = pnl_result.scalar_one_or_none()
+
+    return ClientDetail(
+                id=str(client.id),
+                name=client.name,
+                email=client.email,
+                status=client.status.value,
+                created_at=client.created_at.isoformat(),
+                bots_count=bots_count,
+                volume_24h=float(latest_pnl.volume_24h) if latest_pnl else 0.0,
+                pnl_24h=float(latest_pnl.realized_pnl) if latest_pnl else 0.0
+    )

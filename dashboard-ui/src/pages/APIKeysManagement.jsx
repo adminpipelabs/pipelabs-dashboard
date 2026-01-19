@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Button, TextField, Alert, CircularProgress } from '@mui/material';
-import api from '../../services/api';
-
+import api from '../services/api';
 const APIKeysManagement = () => {
               const [keys, setKeys] = useState([]);
               const [name, setName] = useState('');

@@ -1,53 +1,52 @@
 from fastapi import APIRouter
-from pydantic import BaseModel
 
 router = APIRouter()
 
-class AdminOverview(BaseModel):
-      active_clients: int = 0
-      total_bots: int = 0
-      volume_24h: float = 0.0
-      revenue_estimate: float = 0.0
+# In-memory storage
+clients = []
+api_keys = []
+client_counter = 0
+key_counter = 0
 
-clients_db = []
-api_keys_db = []
-next_client_id = 1
-next_key_id = 1
-
+# GET /admin/overview
 @router.get("/admin/overview")
 async def get_admin_overview():
-      return {"active_clients": len(clients_db), "total_bots": 0, "volume_24h": 0.0, "revenue_estimate": 0.0}
+          return {"active_clients": len(clients), "total_bots": 0, "volume_24h": 0.0, "revenue_estimate": 0.0}
 
+# GET /admin/dashboard
 @router.get("/admin/dashboard")
 async def get_dashboard():
-      return {"active_clients": len(clients_db), "total_bots": 0, "volume_24h": 0.0, "revenue_estimate": 0.0}
+          return {"active_clients": len(clients), "total_bots": 0, "volume_24h": 0.0, "revenue_estimate": 0.0}
 
+# GET /admin/tokens
 @router.get("/admin/tokens")
 async def get_tokens():
-      return []
+          return []
 
+# GET /admin/clients
 @router.get("/admin/clients")
 async def list_clients():
-      return clients_db
+          return clients
 
+# POST /admin/clients
 @router.post("/admin/clients")
 async def create_client(data: dict):
-      global next_client_id
-      client = dict(data)
-      client["id"] = next_client_id
-      next_client_id += 1
-      clients_db.append(client)
-      return client
+          global client_counter
+          client_counter += 1
+          client = {"id": client_counter, **data}
+          clients.append(client)
+          return client
 
+# GET /admin/api-keys
 @router.get("/admin/api-keys")
 async def list_api_keys():
-      return api_keys_db
+          return api_keys
 
+# POST /admin/api-keys
 @router.post("/admin/api-keys")
 async def create_api_key(data: dict):
-      global next_key_id
-      api_key = dict(data)
-      api_key["id"] = next_key_id
-      next_key_id += 1
-      api_keys_db.append(api_key)
-      return api_key
+          global key_counter
+          key_counter += 1
+          api_key = {"id": key_counter, **data}
+          api_keys.append(api_key)
+          return api_key

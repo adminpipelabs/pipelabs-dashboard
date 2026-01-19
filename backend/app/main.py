@@ -4,7 +4,6 @@ Pipe Labs Dashboard - Main FastAPI Application
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 from app.api import auth, clients, bots, orders, agent, admin, billing, api_keys, agent_chat
 from app.core.config import settings
 from app.core.database import engine, Base
@@ -12,29 +11,30 @@ from app.core.database import engine, Base
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup and shutdown events"""
-    # Startup
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
+        """Startup and shutdown events"""
+        # Startup
+        async with engine.begin() as conn:
+                    await conn.run_sync(Base.metadata.create_all)
+                yield
     # Shutdown
     await engine.dispose()
 
 
 app = FastAPI(
-    title="Pipe Labs Dashboard",
-    description="Multi-tenant trading platform with AI agent integration",
-    version="0.1.0",
-    lifespan=lifespan,
+        title="Pipe Labs Dashboard",
+        description="Multi-tenant trading platform with AI agent integration",
+        version="0.1.0",
+        lifespan=lifespan,
 )
 
-# CORS middleware
+# CORS middleware - CRITICAL FIX for preflight requests
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        allow_headers=["*"],
+        max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 # Include routers
@@ -51,15 +51,15 @@ app.include_router(agent_chat.router, prefix="/api/agent", tags=["Agent Chat"])
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
+        """Health check endpoint"""
     return {"status": "healthy", "version": "0.1.1-fixed"}
 
 
 @app.get("/")
 async def root():
-    """Root endpoint"""
+        """Root endpoint"""
     return {
-        "message": "Pipe Labs Dashboard API",
-        "docs": "/docs",
-        "health": "/health"
+                "message": "Pipe Labs Dashboard API",
+                "docs": "/docs",
+                "health": "/health"
     }

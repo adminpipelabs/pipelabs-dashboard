@@ -31,8 +31,8 @@ const menuItems = [
 const adminMenuItems = [
   { text: 'Admin Overview', path: '/admin' },
   { text: 'Client Management', path: '/admin/clients' },
-  { text: 'Token Management', path: '/admin/tokens' }
-];
+  { text: 'Token Management', path: '/admin/tokens' },
+  { text: 'API Keys Management', path: '/admin/api-keys' }];
 
 function Layout() {
   const { user } = useAuth();
@@ -116,6 +116,7 @@ function Layout() {
           <Route path="/admin/clients/:clientId" element={<ProtectedRoute><ClientDetailView /></ProtectedRoute>} />
         <Route path="/admin/clients/:clientId/api-keys" element={<ProtectedRoute><APIKeysManagement /></ProtectedRoute>} />
           <Route path="/admin/tokens" element={<ProtectedRoute><TokenManagement /></ProtectedRoute>} />
+                <Route path="/admin/api-keys" element={<ProtectedRoute><APIKeysManagement /></ProtectedRoute>} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
         </Routes>

@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import engine, Base
-from app.api import admin
+from app.api.admin import router as admin_router
 
 
 @asynccontextmanager
@@ -31,8 +31,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Only load admin routes for now
-app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
 
 
 @app.get("/health")

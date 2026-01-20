@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+Page_Upimport React, { useState } from 'react';
 import { 
     Container, Paper, TextField, Button, Box, Typography, 
     Stepper, Step, StepLabel, Card, CardContent, Grid, FormControl, 
@@ -177,7 +177,7 @@ export default function OnboardClient() {
                       </Typography>Typography>
               </Box>Box>
         
-          {error && <Alert severity="error" className="alert-box">{error}</Alert>Alert>}
+          {error && <Alert severity="error" className="alert-box">{error}</Alert>}
           {successMessage && <Alert severity="success" className="alert-box">{successMessage}</Alert>Alert>}
         
               <Paper className="form-paper">

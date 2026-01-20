@@ -50,3 +50,42 @@ async def create_api_key(data: dict):
           api_key = {"id": key_counter, **data}
           api_keys.append(api_key)
           return api_key
+
+# POST /admin/test-exchange - Validate exchange API keys
+@router.post("/admin/test-exchange")
+async def test_exchange(data: dict):
+              """Test exchange connectivity with provided API keys"""
+              import ccxt
+
+    exchange_name = data.get("exchange", "").lower()
+    api_key = data.get("api_key", "")
+    api_secret = data.get("api_secret", "")
+
+    if not exchange_name or not api_key or not api_secret:
+                      return {"success": False, "error": "Missing exchange, api_key, or api_secret"}
+
+    try:
+                      # Create exchange instance
+                      exchange_class = getattr(ccxt, exchange_name)
+                      exchange = exchange_class({
+                                            'apiKey': api_key,
+                                            'secret': api_secret,
+                                            'enableRateLimit': True,
+                                            'verbose': False
+                      })
+
+        # Test the connection by fetching balance
+        balance = exchange.fetch_balance()
+
+        return {
+                              "success": True,
+                              "message": f"Successfully connected to {exchange_name}",
+                              "exchange": exchange_name,
+                              "balance": {"free": balance.get("free", {}), "used": balance.get("used", {})}
+        }
+except ccxt.InvalidApiKey:
+        return {"success": False, "error": "Invalid API key or secret"}
+except ccxt.ExchangeNotAvailable:
+        return {"success": False, "error": f"{exchange_name} exchange not available"}
+except Exception as e:
+        return {"success": False, "error": str(e)}

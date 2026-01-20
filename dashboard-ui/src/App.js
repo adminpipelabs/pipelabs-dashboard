@@ -121,9 +121,9 @@ function Layout() {
                 <Route path="/admin/api-keys" element={<ProtectedRoute><APIKeysManagement /></ProtectedRoute>} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+                    <Route path="/admin/onboard" element={<ProtectedRoute><OnboardClient /></ProtectedRoute>} />
         </Routes>
       </Box>
-        <Route path="/admin/onboard" element={<ProtectedRoute><OnboardClient /></ProtectedRoute>} />
 
       {/* Chat Sidebar */}
       {user && !isLoginPage && !isRegisterPage && (

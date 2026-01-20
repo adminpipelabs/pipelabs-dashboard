@@ -39,6 +39,7 @@ class Client(Base):
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     # Relationships
     api_keys: Mapped[List["ExchangeAPIKey"]] = relationship("ExchangeAPIKey", back_populates="client", cascade="all, delete-orphan")
 

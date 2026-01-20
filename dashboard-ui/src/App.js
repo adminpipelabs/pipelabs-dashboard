@@ -11,7 +11,6 @@ import ClientManagement from './pages/ClientManagement';
 import TokenManagement from './pages/TokenManagement';
 import ClientDetailView from './pages/ClientDetailView';
 import APIKeysManagement from './pages/APIKeysManagement';
-import OnboardClient from './pages/admin/OnboardClient';
 import { Box, Drawer, List, ListItem, ListItemText, Toolbar, Divider, ListSubheader, Fab, Tooltip } from '@mui/material';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import Header from './Header';
@@ -121,11 +120,9 @@ function Layout() {
                 <Route path="/admin/api-keys" element={<ProtectedRoute><APIKeysManagement /></ProtectedRoute>} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-                    <Route path="/admin/onboard" element={<ProtectedRoute><OnboardClient /></ProtectedRoute>} />
         </Routes>
       </Box>
 
-      {/* Chat Sidebar */}
       {user && !isLoginPage && !isRegisterPage && (
         <>
           <ChatSidebar open={chatOpen} onClose={() => setChatOpen(false)} />

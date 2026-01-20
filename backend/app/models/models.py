@@ -30,8 +30,9 @@ class Client(Base):
     password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     
     # Status
-    status: Mapped[ClientStatus] = mapped_column(Enum(ClientStatus), default=ClientStatus.ACTIVE),    tier: Mapped[str] = mapped_column(String(50), default="Standard")
-    role: Mapped[str] = mapped_column(String(50), default="client")
+    status: Mapped[ClientStatus] = mapped_column(Enum(ClientStatus), default=ClientStatus.ACTIVE),
+        tier: Mapped[str] = mapped_column(String(50), default="Standard"
+                                             role: Mapped[str] = mapped_column(String(50), default="client")
     
     # Settings (JSON)
     settings: Mapped[Optional[dict]] = mapped_column(JSON, default=dict)

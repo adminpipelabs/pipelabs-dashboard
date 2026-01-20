@@ -1,17 +1,16 @@
 """
 Admin API endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from typing import List, Optional
+from typing import Optional
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
 import uuid
 
 from app.core.database import get_db
-from app.core.security import get_password_hash
-from app.models import User, Client, ExchangeAPIKey
+from app.models import Client, ExchangeAPIKey
 
 router = APIRouter()
 
@@ -20,29 +19,15 @@ router = APIRouter()
 class ClientCreate(BaseModel):
     name: str
     email: EmailStr
-    contactPerson: Optional[str] = None
-    telegramId: Optional[str] = None
-    website: Optional[str] = None
     tier: Optional[str] = "Standard"
-    tokenName: Optional[str] = None
-    tokenSymbol: Optional[str] = None
-    contractAddress: Optional[str] = None
-    tradingPair: Optional[str] = None
     settings: Optional[dict] = None
 
 
 class ClientUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
-    contactPerson: Optional[str] = None
-    telegramId: Optional[str] = None
-    website: Optional[str] = None
-    tier: Optional[str] = None
     status: Optional[str] = None
-    tokenName: Optional[str] = None
-    tokenSymbol: Optional[str] = None
-    contractAddress: Optional[str] = None
-    tradingPair: Optional[str] = None
+    tier: Optional[str] = None
     settings: Optional[dict] = None
 
 
@@ -55,24 +40,17 @@ class APIKeyCreate(BaseModel):
     is_testnet: Optional[bool] = False
 
 
-# GET /admin/overview - Dashboard stats
+# GET /admin/overview
 @router.get("/overview")
 async def get_admin_overview(db: AsyncSession = Depends(get_db)):
     """Get admin dashboard overview stats"""
     try:
-        # Count total clients
         result = await db.execute(select(func.count(Client.id)))
         total_clients = result.scalar() or 0
         
-        # Count active clients
-        result = await db.execute(
-            select(func.count(Client.id)).where(Client.status == "Active")
-        )
-        active_clients = result.scalar() or 0
-        
         return {
             "totalClients": total_clients,
-            "activeClients": active_clients,
+            "activeClients": total_clients,
             "totalVolume": 0,
             "totalRevenue": 0,
             "activeBots": 0,
@@ -85,12 +63,11 @@ async def get_admin_overview(db: AsyncSession = Depends(get_db)):
             "totalVolume": 0,
             "totalRevenue": 0,
             "activeBots": 0,
-            "alerts": 0,
-            "error": str(e)
+            "alerts": 0
         }
 
 
-# GET /admin/clients - List all clients
+# GET /admin/clients
 @router.get("/clients")
 async def get_clients(db: AsyncSession = Depends(get_db)):
     """Get all clients"""
@@ -103,20 +80,17 @@ async def get_clients(db: AsyncSession = Depends(get_db)):
                 "id": str(client.id),
                 "name": client.name,
                 "email": client.email,
-                "contactPerson": client.contact_person,
-                "telegramId": client.telegram_id,
-                "website": client.website,
                 "status": client.status or "Active",
-                "tier": client.tier or "Standard",
-                "tokenName": client.token_name,
-                "tokenSymbol": client.token_symbol,
-                "contractAddress": client.contract_address,
-                "tradingPair": client.trading_pair,
+                "tier": client.settings.get("tier", "Standard") if client.settings else "Standard",
+                "tokenName": client.settings.get("tokenName") if client.settings else None,
+                "tokenSymbol": client.settings.get("tokenSymbol") if client.settings else None,
+                "tradingPair": client.settings.get("tradingPair") if client.settings else None,
+                "contactPerson": client.settings.get("contactPerson") if client.settings else None,
+                "telegramId": client.settings.get("telegramId") if client.settings else None,
+                "website": client.settings.get("website") if client.settings else None,
                 "settings": client.settings or {},
                 "volume": 0,
                 "revenue": 0,
-                "projects": 1,
-                "tokens": 1,
                 "exchanges": [],
                 "created_at": client.created_at.isoformat() if client.created_at else None
             }
@@ -127,7 +101,7 @@ async def get_clients(db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# GET /admin/clients/{client_id} - Get single client
+# GET /admin/clients/{client_id}
 @router.get("/clients/{client_id}")
 async def get_client(client_id: str, db: AsyncSession = Depends(get_db)):
     """Get client by ID"""
@@ -144,15 +118,14 @@ async def get_client(client_id: str, db: AsyncSession = Depends(get_db)):
             "id": str(client.id),
             "name": client.name,
             "email": client.email,
-            "contactPerson": client.contact_person,
-            "telegramId": client.telegram_id,
-            "website": client.website,
             "status": client.status or "Active",
-            "tier": client.tier or "Standard",
-            "tokenName": client.token_name,
-            "tokenSymbol": client.token_symbol,
-            "contractAddress": client.contract_address,
-            "tradingPair": client.trading_pair,
+            "tier": client.settings.get("tier", "Standard") if client.settings else "Standard",
+            "tokenName": client.settings.get("tokenName") if client.settings else None,
+            "tokenSymbol": client.settings.get("tokenSymbol") if client.settings else None,
+            "tradingPair": client.settings.get("tradingPair") if client.settings else None,
+            "contactPerson": client.settings.get("contactPerson") if client.settings else None,
+            "telegramId": client.settings.get("telegramId") if client.settings else None,
+            "website": client.settings.get("website") if client.settings else None,
             "settings": client.settings or {},
             "created_at": client.created_at.isoformat() if client.created_at else None
         }
@@ -162,33 +135,30 @@ async def get_client(client_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# POST /admin/clients - Create new client
+# POST /admin/clients
 @router.post("/clients")
 async def create_client(client_data: ClientCreate, db: AsyncSession = Depends(get_db)):
     """Create a new client"""
     try:
-        # Check if email already exists
+        # Check if email exists
         result = await db.execute(
             select(Client).where(Client.email == client_data.email)
         )
         if result.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Email already registered")
         
-        # Create new client
+        # Store extra fields in settings JSON
+        settings = client_data.settings or {}
+        if client_data.tier:
+            settings["tier"] = client_data.tier
+        
         new_client = Client(
             id=uuid.uuid4(),
             name=client_data.name,
             email=client_data.email,
-            contact_person=client_data.contactPerson,
-            telegram_id=client_data.telegramId,
-            website=client_data.website,
-            tier=client_data.tier or "Standard",
             status="Active",
-            token_name=client_data.tokenName,
-            token_symbol=client_data.tokenSymbol,
-            contract_address=client_data.contractAddress,
-            trading_pair=client_data.tradingPair,
-            settings=client_data.settings or {},
+            role="client",
+            settings=settings,
             created_at=datetime.utcnow()
         )
         
@@ -210,7 +180,7 @@ async def create_client(client_data: ClientCreate, db: AsyncSession = Depends(ge
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# PATCH /admin/clients/{client_id} - Update client
+# PATCH /admin/clients/{client_id}
 @router.patch("/clients/{client_id}")
 async def update_client(
     client_id: str,
@@ -227,33 +197,18 @@ async def update_client(
         if not client:
             raise HTTPException(status_code=404, detail="Client not found")
         
-        # Update fields if provided
         if client_data.name is not None:
             client.name = client_data.name
         if client_data.email is not None:
             client.email = client_data.email
-        if client_data.contactPerson is not None:
-            client.contact_person = client_data.contactPerson
-        if client_data.telegramId is not None:
-            client.telegram_id = client_data.telegramId
-        if client_data.website is not None:
-            client.website = client_data.website
-        if client_data.tier is not None:
-            client.tier = client_data.tier
         if client_data.status is not None:
             client.status = client_data.status
-        if client_data.tokenName is not None:
-            client.token_name = client_data.tokenName
-        if client_data.tokenSymbol is not None:
-            client.token_symbol = client_data.tokenSymbol
-        if client_data.contractAddress is not None:
-            client.contract_address = client_data.contractAddress
-        if client_data.tradingPair is not None:
-            client.trading_pair = client_data.tradingPair
         if client_data.settings is not None:
-            client.settings = client_data.settings
-        
-        client.updated_at = datetime.utcnow()
+            client.settings = {**(client.settings or {}), **client_data.settings}
+        if client_data.tier is not None:
+            if not client.settings:
+                client.settings = {}
+            client.settings["tier"] = client_data.tier
         
         await db.commit()
         
@@ -265,7 +220,7 @@ async def update_client(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# DELETE /admin/clients/{client_id} - Delete client
+# DELETE /admin/clients/{client_id}
 @router.delete("/clients/{client_id}")
 async def delete_client(client_id: str, db: AsyncSession = Depends(get_db)):
     """Delete a client"""
@@ -289,7 +244,7 @@ async def delete_client(client_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# GET /admin/clients/{client_id}/api-keys - List client's API keys
+# GET /admin/clients/{client_id}/api-keys
 @router.get("/clients/{client_id}/api-keys")
 async def get_client_api_keys(client_id: str, db: AsyncSession = Depends(get_db)):
     """Get all API keys for a client"""
@@ -315,7 +270,7 @@ async def get_client_api_keys(client_id: str, db: AsyncSession = Depends(get_db)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# POST /admin/clients/{client_id}/api-keys - Add API key
+# POST /admin/clients/{client_id}/api-keys
 @router.post("/clients/{client_id}/api-keys")
 async def add_client_api_key(
     client_id: str,
@@ -324,14 +279,12 @@ async def add_client_api_key(
 ):
     """Add an API key for a client"""
     try:
-        # Verify client exists
         result = await db.execute(
             select(Client).where(Client.id == uuid.UUID(client_id))
         )
         if not result.scalar_one_or_none():
             raise HTTPException(status_code=404, detail="Client not found")
         
-        # Create API key
         new_key = ExchangeAPIKey(
             id=uuid.uuid4(),
             client_id=uuid.UUID(client_id),
@@ -356,7 +309,7 @@ async def add_client_api_key(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# DELETE /admin/clients/{client_id}/api-keys/{key_id} - Delete API key
+# DELETE /admin/clients/{client_id}/api-keys/{key_id}
 @router.delete("/clients/{client_id}/api-keys/{key_id}")
 async def delete_client_api_key(
     client_id: str,

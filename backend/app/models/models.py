@@ -34,17 +34,6 @@ class Client(Base):
     tier: Mapped[str] = mapped_column(String(50), default="Standard")
     role: Mapped[str] = mapped_column(String(50), default="client")
     
-    # Contact info
-    contact_person: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    telegram_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    website: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    
-    # Token info
-    token_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    token_symbol: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    contract_address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    trading_pair: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    
     # Settings (JSON)
     settings: Mapped[Optional[dict]] = mapped_column(JSON, default=dict)
     

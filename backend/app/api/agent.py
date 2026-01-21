@@ -76,7 +76,7 @@ async def call_hummingbot(method: str, endpoint: str, payload: dict = None) -> d
             url = f"{HUMMINGBOT_URL}{endpoint}"
             if method == "GET":
                 resp = await client.get(url)
-            else:
+                else:
                 resp = await client.post(url, json=payload or {})
             resp.raise_for_status()
             return resp.json()

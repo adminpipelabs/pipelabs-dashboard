@@ -1,11 +1,10 @@
 """
 Agent API routes - Connects dashboard chat to Claude with trading tools
 """
-from typing import Annotated, List, Optional
+from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 import httpx
 import anthropic
 import json
@@ -14,7 +13,7 @@ import logging
 
 from app.core.database import get_db
 from app.api.auth import get_current_user
-from app.models import Client, AgentChat, ChatRole
+from app.models import Client
 
 logger = logging.getLogger(__name__)
 
@@ -174,10 +173,6 @@ async def chat(
 
         text_response = "".join(b.text for b in response.content if hasattr(b, "text"))
 
-        db.add(AgentChat(client_id=current_user.id, role=ChatRole.user, message=request.message))
-        db.add(AgentChat(client_id=current_user.id, role=ChatRole.assistant, message=text_response, actions_taken=actions_taken or None))
-        await db.commit()
-
         return ChatResponse(response=text_response, actions_taken=actions_taken)
     except Exception as e:
         logger.error(f"Chat error: {e}")
@@ -190,23 +185,7 @@ async def get_history(
     db: Annotated[AsyncSession, Depends(get_db)],
     limit: int = 50
 ):
-    result = await db.execute(
-        select(AgentChat)
-        .where(AgentChat.client_id == current_user.id)
-        .order_by(AgentChat.timestamp.desc())
-        .limit(limit)
-    )
-    chats = result.scalars().all()
-    return [
-        {
-            "id": str(c.id),
-            "role": c.role.value,
-            "message": c.message,
-            "actions_taken": c.actions_taken,
-            "timestamp": c.timestamp.isoformat()
-        }
-        for c in reversed(chats)
-    ]
+    return []
 
 
 @router.delete("/history")
@@ -214,6 +193,4 @@ async def clear_history(
     current_user: Annotated[Client, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)]
 ):
-    await db.execute(AgentChat.__table__.delete().where(AgentChat.client_id == current_user.id))
-    await db.commit()
     return {"status": "cleared"}

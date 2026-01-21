@@ -106,9 +106,9 @@ async def call_hummingbot(method: str, endpoint: str, payload: dict = None) -> d
                                         resp = await client.post(url, json=payload or {})
                                     resp.raise_for_status()
                         return resp.json()
-except Exception as e:
-            logger.error(f"Hummingbot API error: {e}")
-            return {"error": str(e)}
+        except Exception as e:
+                    logger.error(f"Hummingbot API error: {e}")
+                    return {"error": str(e)}
 
 
 async def execute_tool(tool_name: str, tool_input: dict) -> str:

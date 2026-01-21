@@ -1,5 +1,5 @@
 """
-Agent API routes - Connects dashboard chat to Claude with trading tools
+Agent API routes - Connects dashboard chat to Claude with trading tools - v2
 """
 from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, HTTPException

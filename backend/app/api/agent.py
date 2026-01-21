@@ -1,5 +1,5 @@
 """
-Agent API routes - Connects dashboard chat to Claude with trading tools - v3
+Agent API routes - Connects dashboard chat to Claude with trading tools
 """
 from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
@@ -76,7 +76,7 @@ async def call_hummingbot(method: str, endpoint: str, payload: dict = None) -> d
             url = f"{HUMMINGBOT_URL}{endpoint}"
             if method == "GET":
                 resp = await client.get(url)
-                else:
+            else:
                 resp = await client.post(url, json=payload or {})
             resp.raise_for_status()
             return resp.json()
@@ -179,7 +179,6 @@ async def chat(
         await db.commit()
 
         return ChatResponse(response=text_response, actions_taken=actions_taken)
-
     except Exception as e:
         logger.error(f"Chat error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

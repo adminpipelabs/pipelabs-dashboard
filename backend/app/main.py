@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import engine, Base
 from app.api.admin import router as admin_router
+from app.api.agent import router as agent_router
 
 
 @asynccontextmanager
@@ -32,6 +33,7 @@ app.add_middleware(
 )
 
 app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
+app.include_router(agent_router, prefix="/api/agent", tags=["Agent"])
 
 
 @app.get("/health")

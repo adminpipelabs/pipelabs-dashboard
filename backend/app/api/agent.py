@@ -1,19 +1,14 @@
 """
-Agent API routes - Connects dashboard chat to Claude with trading tools
+Agent API routes - NO AUTH VERSION for testing
 """
-from typing import Annotated, List
-from fastapi import APIRouter, Depends, HTTPException
+from typing import List
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
 import anthropic
 import json
 import os
 import logging
-
-from app.core.database import get_db
-from app.api.auth import get_current_user
-from app.models import Client
 
 logger = logging.getLogger(__name__)
 
@@ -123,11 +118,7 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(
-    request: ChatRequest,
-    current_user: Annotated[Client, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)]
-):
+async def chat(request: ChatRequest):
     if not ANTHROPIC_KEY:
         raise HTTPException(status_code=500, detail="ANTHROPIC_API_KEY not configured")
 
@@ -180,17 +171,10 @@ async def chat(
 
 
 @router.get("/history")
-async def get_history(
-    current_user: Annotated[Client, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-    limit: int = 50
-):
+async def get_history(limit: int = 50):
     return []
 
 
 @router.delete("/history")
-async def clear_history(
-    current_user: Annotated[Client, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)]
-):
+async def clear_history():
     return {"status": "cleared"}

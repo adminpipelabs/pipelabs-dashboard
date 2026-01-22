@@ -1,40 +1,34 @@
 """
 Pipe Labs Dashboard - Main FastAPI Application
 """
-import os
-import json
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from sqlalchemy import text
 from app.core.database import engine, Base
+from app.core.config import settings
 from app.api.admin import router as admin_router
 from app.api.agent import router as agent_router
 from app.api.auth import router as auth_router
-
-
-# Parse CORS origins from environment
-def get_cors_origins():
-    cors_env = os.getenv("CORS_ORIGINS", "")
-    if not cors_env:
-        return ["https://ai-trading-ui-production.up.railway.app", "http://localhost:3000"]
-    
-    # Try parsing as JSON array first
-    try:
-        origins = json.loads(cors_env)
-        if isinstance(origins, list):
-            return origins
-    except json.JSONDecodeError:
-        pass
-    
-    # Fall back to comma-separated
-    return [origin.strip() for origin in cors_env.split(",") if origin.strip()]
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+        # Migration: Make email column nullable in clients table
+        try:
+            await conn.execute(
+                text("ALTER TABLE clients ALTER COLUMN email DROP NOT NULL")
+            )
+            print("✅ Migration: Made email column nullable in clients table")
+        except Exception as e:
+            # Column might already be nullable or table doesn't exist yet
+            error_str = str(e).lower()
+            if "does not exist" not in error_str and "already" not in error_str and "cannot alter" not in error_str and "column \"email\" is not of type" not in error_str:
+                print(f"⚠️ Migration warning (email nullable): {e}")
     
     # Auto-setup admin wallet on startup (one-time, safe to run multiple times)
     try:
@@ -73,13 +67,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Get CORS origins from environment
-cors_origins = get_cors_origins()
-print(f"🌐 CORS origins: {cors_origins}")
+# Print CORS origins for debugging
+print(f"🌐 CORS origins: {settings.CORS_ORIGINS}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

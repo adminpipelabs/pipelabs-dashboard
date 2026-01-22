@@ -1,6 +1,8 @@
 """
 Pipe Labs Dashboard - Main FastAPI Application
 """
+import os
+import json
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +12,23 @@ from app.api.admin import router as admin_router
 from app.api.agent import router as agent_router
 from app.api.auth import router as auth_router
 
+
+# Parse CORS origins from environment
+def get_cors_origins():
+    cors_env = os.getenv("CORS_ORIGINS", "")
+    if not cors_env:
+        return ["*"]
+    
+    # Try parsing as JSON array first
+    try:
+        origins = json.loads(cors_env)
+        if isinstance(origins, list):
+            return origins
+    except json.JSONDecodeError:
+        pass
+    
+    # Fall back to comma-separated
+    return [origin.strip() for origin in cors_env.split(",") if origin.strip()]
 
 
 @asynccontextmanager
@@ -54,9 +73,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Get CORS origins from environment
+cors_origins = get_cors_origins()
+print(f"🌐 CORS origins: {cors_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

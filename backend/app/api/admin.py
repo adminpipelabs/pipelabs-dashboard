@@ -10,7 +10,7 @@ from datetime import datetime
 import uuid
 
 from app.core.database import get_db
-from app.models import Client, ExchangeAPIKey, ClientStatus, UserRole
+from app.models import Client, ExchangeAPIKey, ClientStatus
 from app.api.auth import get_current_admin
 from app.models.user import User
 from typing import Annotated
@@ -188,9 +188,9 @@ async def create_client(
     new_client = Client(
         name=client_data.name,
         wallet_address=wallet_address,
-        email=client_data.email,
+        email=client_data.email,  # Optional
         password_hash=None,  # No password needed for wallet auth
-        role=UserRole.CLIENT,
+        role="client",
         status=status_value,
         settings=settings
     )

@@ -193,7 +193,7 @@ export default function ChatSidebar({ open, onClose }) {
                   {msg.actions && msg.actions.length > 0 && (
                     <Box sx={{ mt: 1, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                       {msg.actions.map((action, i) => (
-                        <Chip key={i} label={action} size="small" variant="outlined" />
+                       <Chip key={i} label={action.tool || 'action'} size="small" variant="outlined" />
                       ))}
                     </Box>
                   )}

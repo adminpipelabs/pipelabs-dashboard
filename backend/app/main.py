@@ -17,7 +17,7 @@ from app.api.auth import router as auth_router
 def get_cors_origins():
     cors_env = os.getenv("CORS_ORIGINS", "")
     if not cors_env:
-        return ["*"]
+        return ["https://ai-trading-ui-production.up.railway.app", "http://localhost:3000"]
     
     # Try parsing as JSON array first
     try:

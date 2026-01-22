@@ -33,7 +33,8 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://localhost:8000",
         "https://adminpipelabs.github.io",
-        "https://frontend-dashboard-production-d07d.up.railway.app"
+        "https://frontend-dashboard-production-d07d.up.railway.app",
+        "https://ai-trading-ui-production.up.railway.app"
     ]
     
     # Hummingbot API

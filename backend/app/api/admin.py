@@ -10,7 +10,10 @@ from datetime import datetime
 import uuid
 
 from app.core.database import get_db
-from app.models import Client, ExchangeAPIKey
+from app.models import Client, ExchangeAPIKey, ClientStatus, UserRole
+from app.api.auth import get_current_admin
+from app.models.user import User
+from typing import Annotated
 
 router = APIRouter()
 

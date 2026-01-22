@@ -1,6 +1,4 @@
 """
-API routes
+API routes package
 """
-from app.api import auth, clients, bots, orders, agent, admin, billing, api_keys, agent_chat
-
-__all__ = ["auth", "clients", "bots", "orders", "agent", "admin", "billing", "api_keys", "agent_chat"]
+# Don't import anything here to avoid circular imports

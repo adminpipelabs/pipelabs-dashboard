@@ -1,3 +1,4 @@
+// Build trigger v2 - Force rebuild for API Keys Management
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { Portfolio, Orders, Bots, Agent } from './pages';
@@ -9,6 +10,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import ClientManagement from './pages/ClientManagement';
 import TokenManagement from './pages/TokenManagement';
 import ClientDetailView from './pages/ClientDetailView';
+import APIKeysManagement from './pages/APIKeysManagement';
 import { Box, Drawer, List, ListItem, ListItemText, Toolbar, Divider, ListSubheader, Fab, Tooltip } from '@mui/material';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import Header from './Header';
@@ -30,8 +32,8 @@ const menuItems = [
 const adminMenuItems = [
   { text: 'Admin Overview', path: '/admin' },
   { text: 'Client Management', path: '/admin/clients' },
-  { text: 'Token Management', path: '/admin/tokens' }
-];
+  { text: 'Token Management', path: '/admin/tokens' },
+  { text: 'API Keys Management', path: '/admin/api-keys' }];
 
 function Layout() {
   const { user } = useAuth();
@@ -113,13 +115,14 @@ function Layout() {
           <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/clients" element={<ProtectedRoute><ClientManagement /></ProtectedRoute>} />
           <Route path="/admin/clients/:clientId" element={<ProtectedRoute><ClientDetailView /></ProtectedRoute>} />
+        <Route path="/admin/clients/:clientId/api-keys" element={<ProtectedRoute><APIKeysManagement /></ProtectedRoute>} />
           <Route path="/admin/tokens" element={<ProtectedRoute><TokenManagement /></ProtectedRoute>} />
+                <Route path="/admin/api-keys" element={<ProtectedRoute><APIKeysManagement /></ProtectedRoute>} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
         </Routes>
       </Box>
 
-      {/* Chat Sidebar */}
       {user && !isLoginPage && !isRegisterPage && (
         <>
           <ChatSidebar open={chatOpen} onClose={() => setChatOpen(false)} />

@@ -175,8 +175,8 @@ async def wallet_login(
 ):
     """
     Login with Ethereum wallet (MetaMask, WalletConnect, etc.)
-    Client signs a message to prove ownership of wallet
-    Auto-creates account if doesn't exist
+    Only allows pre-registered wallets (admin or client created by admin)
+    No auto-registration - security requirement
     """
     # Verify signature
     if not verify_wallet_signature(request.wallet_address, request.message, request.signature):
@@ -188,27 +188,29 @@ async def wallet_login(
     # Normalize wallet address
     wallet_address = Web3.to_checksum_address(request.wallet_address)
     
-    # Check if user exists
+    # Check if user exists - ONLY allow pre-registered wallets
     result = await db.execute(
         select(User).where(User.wallet_address == wallet_address)
     )
     user = result.scalar_one_or_none()
     
-    # Auto-register if new wallet
+    # Reject if wallet not registered (security: no auto-registration)
     if not user:
-        user = User(
-            wallet_address=wallet_address,
-            role="client",
-            is_active=True,
-            last_login=datetime.utcnow()
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Wallet address {wallet_address} is not registered. Please contact your admin to create your account. Only wallets registered by an admin can log in."
         )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-    else:
-        # Update last login
-        user.last_login = datetime.utcnow()
-        await db.commit()
+    
+    # Check if account is active
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is disabled"
+        )
+    
+    # Update last login
+    user.last_login = datetime.utcnow()
+    await db.commit()
     
     # Create access token
     access_token = create_access_token(

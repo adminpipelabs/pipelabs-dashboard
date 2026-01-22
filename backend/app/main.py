@@ -80,3 +80,32 @@ async def root():
         "docs": "/docs",
         "health": "/health"
     }
+
+
+@app.post("/force-admin-setup")
+async def force_admin_setup():
+    """Force admin setup - call this to set admin wallet"""
+    try:
+        from app.core.database import AsyncSessionLocal
+        from app.models.user import User
+        from web3 import Web3
+        from sqlalchemy import select
+        
+        ADMIN_WALLET = "0x61b6EF3769c88332629fA657508724a912b79101"
+        async with AsyncSessionLocal() as db:
+            wallet = Web3.to_checksum_address(ADMIN_WALLET)
+            result = await db.execute(select(User).where(User.wallet_address == wallet))
+            user = result.scalar_one_or_none()
+            
+            if not user:
+                user = User(wallet_address=wallet, role="admin", is_active=True)
+                db.add(user)
+                await db.commit()
+                return {"message": "Admin created", "wallet": wallet, "role": "admin"}
+            else:
+                user.role = "admin"
+                user.is_active = True
+                await db.commit()
+                return {"message": "Admin updated", "wallet": wallet, "role": user.role, "was": "updated"}
+    except Exception as e:
+        return {"error": str(e)}

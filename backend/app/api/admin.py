@@ -18,7 +18,9 @@ router = APIRouter()
 # Pydantic models
 class ClientCreate(BaseModel):
     name: str
-    email: EmailStr
+    wallet_address: str  # EVM wallet address (required)
+    email: Optional[EmailStr] = None  # Optional for notifications
+    status: Optional[str] = "Active"
     tier: Optional[str] = "Standard"
     settings: Optional[dict] = None
 
@@ -137,47 +139,71 @@ async def get_client(client_id: str, db: AsyncSession = Depends(get_db)):
 
 # POST /admin/clients
 @router.post("/clients")
-async def create_client(client_data: ClientCreate, db: AsyncSession = Depends(get_db)):
-    """Create a new client"""
+async def create_client(
+    client_data: ClientCreate,
+    current_admin: Annotated[User, Depends(get_current_admin)],
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a new client with EVM wallet address"""
+    from web3 import Web3
+    
+    # Normalize wallet address
     try:
-        # Check if email exists
-        result = await db.execute(
+        wallet_address = Web3.to_checksum_address(client_data.wallet_address)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid wallet address format")
+    
+    # Check if wallet already registered
+    existing_wallet = await db.execute(
+        select(Client).where(Client.wallet_address == wallet_address)
+    )
+    if existing_wallet.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Wallet address already registered")
+    
+    # Check email if provided
+    if client_data.email:
+        existing_email = await db.execute(
             select(Client).where(Client.email == client_data.email)
         )
-        if result.scalar_one_or_none():
+        if existing_email.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Email already registered")
-        
-        # Store extra fields in settings JSON
-        settings = client_data.settings or {}
-        if client_data.tier:
-            settings["tier"] = client_data.tier
-        
-        new_client = Client(
-            id=uuid.uuid4(),
-            name=client_data.name,
-            email=client_data.email,
-            status="Active",
-            role="client",
-            settings=settings,
-            created_at=datetime.utcnow()
-        )
-        
-        db.add(new_client)
-        await db.commit()
-        await db.refresh(new_client)
-        
-        return {
-            "id": str(new_client.id),
-            "name": new_client.name,
-            "email": new_client.email,
-            "status": new_client.status,
-            "message": "Client created successfully"
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    
+    # Parse status
+    status_value = ClientStatus.ACTIVE
+    if client_data.status:
+        try:
+            status_value = ClientStatus[client_data.status.upper()]
+        except KeyError:
+            status_value = ClientStatus.ACTIVE
+    
+    # Store extra fields in settings JSON
+    settings = client_data.settings or {}
+    if client_data.tier:
+        settings["tier"] = client_data.tier
+    
+    # Create client with wallet address
+    new_client = Client(
+        name=client_data.name,
+        wallet_address=wallet_address,
+        email=client_data.email,
+        password_hash=None,  # No password needed for wallet auth
+        role=UserRole.CLIENT,
+        status=status_value,
+        settings=settings
+    )
+    
+    db.add(new_client)
+    await db.commit()
+    await db.refresh(new_client)
+    
+    return {
+        "id": str(new_client.id),
+        "name": new_client.name,
+        "email": new_client.email or "",
+        "wallet_address": new_client.wallet_address,
+        "status": new_client.status.value if hasattr(new_client.status, 'value') else str(new_client.status),
+        "message": "Client created successfully"
+    }
 
 
 # PATCH /admin/clients/{client_id}

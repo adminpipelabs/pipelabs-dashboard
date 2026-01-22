@@ -22,6 +22,68 @@ from app.models import (
 router = APIRouter()
 
 
+# Temporary endpoint to register admin wallet (one-time use)
+@router.post("/register-admin-wallet")
+async def register_admin_wallet(
+    wallet_address: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    One-time endpoint to register admin wallet
+    Use this if admin wallet is not registered correctly
+    """
+    from web3 import Web3
+    
+    try:
+        # Normalize wallet address
+        wallet_address = Web3.to_checksum_address(wallet_address)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid wallet address format")
+    
+    # Check if exists
+    result = await db.execute(
+        select(User).where(User.wallet_address == wallet_address)
+    )
+    existing = result.scalar_one_or_none()
+    
+    if existing:
+        # Update to admin if not already
+        if existing.role != "admin":
+            existing.role = "admin"
+            existing.is_active = True
+            await db.commit()
+            return {
+                "message": "User updated to admin",
+                "wallet_address": wallet_address,
+                "role": existing.role,
+                "id": str(existing.id)
+            }
+        else:
+            return {
+                "message": "Admin already registered",
+                "wallet_address": wallet_address,
+                "role": existing.role,
+                "id": str(existing.id)
+            }
+    else:
+        # Create new admin
+        admin = User(
+            wallet_address=wallet_address,
+            role="admin",
+            is_active=True
+        )
+        db.add(admin)
+        await db.commit()
+        await db.refresh(admin)
+        
+        return {
+            "message": "Admin created successfully",
+            "wallet_address": wallet_address,
+            "role": admin.role,
+            "id": str(admin.id)
+        }
+
+
 # Schemas
 class AdminOverview(BaseModel):
     active_clients: int
@@ -32,8 +94,8 @@ class AdminOverview(BaseModel):
 
 class ClientCreate(BaseModel):
     name: str
-    email: EmailStr
-    password: Optional[str] = None  # Auto-generate if not provided
+    wallet_address: str  # EVM wallet address (required)
+    email: Optional[EmailStr] = None  # Optional for notifications
     status: Optional[str] = "Active"
     tier: Optional[str] = "Standard"
 
@@ -47,7 +109,8 @@ class ClientUpdate(BaseModel):
 class ClientDetail(BaseModel):
     id: str
     name: str
-    email: str
+    wallet_address: str
+    email: Optional[str] = None
     status: str
     created_at: str
     bots_count: int
@@ -135,6 +198,7 @@ async def list_clients(
         client_details.append(ClientDetail(
             id=str(client.id),
             name=client.name,
+            wallet_address=client.wallet_address,
             email=client.email,
             status=client.status.value,
             created_at=client.created_at.isoformat(),
@@ -152,19 +216,29 @@ async def create_client(
     current_admin: Annotated[User, Depends(get_current_admin)],
     db: AsyncSession = Depends(get_db)
 ):
-    """Create a new client"""
-    existing = await db.execute(
-        select(Client).where(Client.email == client_data.email)
-    )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Email already registered")
+    """Create a new client with EVM wallet address"""
+    from web3 import Web3
     
-    # Auto-generate password if not provided
-    password = client_data.password
-    if not password:
-        # Generate a random 16-character password
-        alphabet = string.ascii_letters + string.digits
-        password = ''.join(secrets.choice(alphabet) for _ in range(16))
+    # Normalize wallet address
+    try:
+        wallet_address = Web3.to_checksum_address(client_data.wallet_address)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid wallet address format")
+    
+    # Check if wallet already registered
+    existing_wallet = await db.execute(
+        select(Client).where(Client.wallet_address == wallet_address)
+    )
+    if existing_wallet.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Wallet address already registered")
+    
+    # Check email if provided
+    if client_data.email:
+        existing_email = await db.execute(
+            select(Client).where(Client.email == client_data.email)
+        )
+        if existing_email.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Email already registered")
     
     # Parse status
     status_value = ClientStatus.ACTIVE
@@ -174,10 +248,12 @@ async def create_client(
         except KeyError:
             status_value = ClientStatus.ACTIVE
     
+    # Create client with wallet address
     client = Client(
         name=client_data.name,
+        wallet_address=wallet_address,
         email=client_data.email,
-        password_hash=get_password_hash(password),
+        password_hash=None,  # No password needed for wallet auth
         role=UserRole.CLIENT,
         status=status_value
     )
@@ -188,7 +264,7 @@ async def create_client(
     return ClientDetail(
         id=str(client.id),
         name=client.name,
-        email=client.email,
+        email=client.email or "",
         status=client.status.value,
         created_at=client.created_at.isoformat(),
         bots_count=0,
@@ -226,11 +302,11 @@ async def get_client(
     return ClientDetail(
         id=str(client.id),
         name=client.name,
+        wallet_address=client.wallet_address,
         email=client.email,
         status=client.status.value,
         created_at=client.created_at.isoformat(),
         bots_count=bots_count,
         volume_24h=float(latest_pnl.volume_24h) if latest_pnl else 0.0,
-        pnl_24h=float(latest_pnl.realized_pnl) if latest_pnl else 0.0,
-        active_pairs=active_pairs
+        pnl_24h=float(latest_pnl.realized_pnl) if latest_pnl else 0.0
     )

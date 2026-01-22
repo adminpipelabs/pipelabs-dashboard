@@ -188,18 +188,49 @@ async def wallet_login(
     # Normalize wallet address
     wallet_address = Web3.to_checksum_address(request.wallet_address)
     
-    # Check if user exists - ONLY allow pre-registered wallets
-    result = await db.execute(
+    # Check if User exists (admin or existing client user)
+    user_result = await db.execute(
         select(User).where(User.wallet_address == wallet_address)
     )
-    user = result.scalar_one_or_none()
+    user = user_result.scalar_one_or_none()
     
-    # Reject if wallet not registered (security: no auto-registration)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Wallet address {wallet_address} is not registered. Please contact your admin to create your account. Only wallets registered by an admin can log in."
+    # If User exists, check if admin or client
+    if user:
+        if user.role == "admin":
+            # Admin login - update last login
+            user.last_login = datetime.utcnow()
+            await db.commit()
+        else:
+            # Existing client user - update last login
+            user.last_login = datetime.utcnow()
+            await db.commit()
+    else:
+        # No User exists - check if Client exists (created by admin)
+        from app.models import Client
+        client_result = await db.execute(
+            select(Client).where(Client.wallet_address == wallet_address)
         )
+        client = client_result.scalar_one_or_none()
+        
+        if client:
+            # Client exists - create User record linked to Client
+            user = User(
+                wallet_address=wallet_address,
+                email=client.email,
+                role="client",
+                is_active=True,
+                client_id=client.id,
+                last_login=datetime.utcnow()
+            )
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+        else:
+            # Wallet not registered - reject login
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Wallet address {wallet_address} is not registered. Please contact your admin to create your account. Only wallets registered by an admin can log in."
+            )
     
     # Check if account is active
     if not user.is_active:
@@ -207,10 +238,6 @@ async def wallet_login(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is disabled"
         )
-    
-    # Update last login
-    user.last_login = datetime.utcnow()
-    await db.commit()
     
     # Create access token
     access_token = create_access_token(

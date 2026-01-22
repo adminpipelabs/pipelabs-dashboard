@@ -63,3 +63,35 @@ async def root():
         "docs": "/docs",
         "health": "/health"
     }
+
+
+@app.post("/setup-admin")
+async def setup_admin_endpoint():
+    """One-time admin setup - call this once then remove"""
+    import asyncio
+    from app.core.database import AsyncSessionLocal
+    from app.models.user import User
+    from web3 import Web3
+    from sqlalchemy import select
+    
+    ADMIN_WALLET = "0x61b6EF3769c88332629fA657508724a912b79101"
+    
+    async with AsyncSessionLocal() as db:
+        try:
+            wallet = Web3.to_checksum_address(ADMIN_WALLET)
+            result = await db.execute(select(User).where(User.wallet_address == wallet))
+            user = result.scalar_one_or_none()
+            
+            if user:
+                if user.role == "admin":
+                    return {"message": "Admin already set", "wallet": wallet}
+                user.role = "admin"
+                user.is_active = True
+            else:
+                user = User(wallet_address=wallet, role="admin", is_active=True)
+                db.add(user)
+            
+            await db.commit()
+            return {"message": "Admin set successfully", "wallet": wallet}
+        except Exception as e:
+            return {"error": str(e)}

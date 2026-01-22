@@ -45,6 +45,101 @@ class APIKeyCreate(BaseModel):
     is_testnet: Optional[bool] = False
 
 
+class ClientOnboardRequest(BaseModel):
+    client: dict
+    token: dict
+    apiKeys: list
+
+
+# POST /admin/clients/onboard
+@router.post("/clients/onboard")
+async def onboard_client(
+    data: ClientOnboardRequest,
+    current_admin: Annotated[User, Depends(get_current_admin)],
+    db: AsyncSession = Depends(get_db)
+):
+    """Onboard a new client with token and API keys in one request"""
+    from web3 import Web3
+    
+    client_data = data.client
+    token_data = data.token
+    api_keys_data = data.apiKeys
+    
+    # Validate wallet address
+    try:
+        wallet_address = Web3.to_checksum_address(client_data.get("walletAddress", ""))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid wallet address format")
+    
+    # Check if wallet already registered
+    existing = await db.execute(
+        select(Client).where(Client.wallet_address == wallet_address)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Wallet address already registered")
+    
+    # Check email if provided
+    email = client_data.get("email")
+    if email:
+        existing_email = await db.execute(
+            select(Client).where(Client.email == email)
+        )
+        if existing_email.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Build settings with token info
+    settings = {
+        "tier": "Standard",
+        "phone": client_data.get("phone"),
+        "commissionPercentage": client_data.get("commissionPercentage", 0),
+        "monthlyFee": client_data.get("monthlyFee", 5000),
+        "tokenName": token_data.get("name"),
+        "tokenSymbol": token_data.get("symbol"),
+        "tokenContractAddress": token_data.get("contractAddress"),
+        "tokenDecimals": token_data.get("decimals", 18),
+        "tokenLogoUrl": token_data.get("logoUrl"),
+    }
+    
+    # Create client
+    new_client = Client(
+        name=client_data.get("name"),
+        wallet_address=wallet_address,
+        email=email,
+        password_hash=None,
+        role="client",
+        status=ClientStatus.ACTIVE,
+        settings=settings
+    )
+    
+    db.add(new_client)
+    await db.flush()  # Get the client ID
+    
+    # Add API keys
+    for key_data in api_keys_data:
+        new_key = ExchangeAPIKey(
+            id=uuid.uuid4(),
+            client_id=new_client.id,
+            exchange=key_data.get("exchange"),
+            api_key=key_data.get("apiKey"),
+            api_secret=key_data.get("apiSecret"),
+            label=key_data.get("label") or key_data.get("exchange"),
+            is_testnet=False,
+            is_active=True,
+            created_at=datetime.utcnow()
+        )
+        db.add(new_key)
+    
+    await db.commit()
+    await db.refresh(new_client)
+    
+    return {
+        "id": str(new_client.id),
+        "name": new_client.name,
+        "wallet_address": new_client.wallet_address,
+        "message": f"Client {new_client.name} onboarded successfully"
+    }
+
+
 # GET /admin/overview
 @router.get("/overview")
 async def get_admin_overview(db: AsyncSession = Depends(get_db)):
@@ -85,7 +180,8 @@ async def get_clients(db: AsyncSession = Depends(get_db)):
                 "id": str(client.id),
                 "name": client.name,
                 "email": client.email,
-                "status": client.status or "Active",
+                "wallet_address": client.wallet_address,
+                "status": client.status.value if hasattr(client.status, 'value') else str(client.status) if client.status else "active",
                 "tier": client.settings.get("tier", "Standard") if client.settings else "Standard",
                 "tokenName": client.settings.get("tokenName") if client.settings else None,
                 "tokenSymbol": client.settings.get("tokenSymbol") if client.settings else None,
@@ -123,7 +219,8 @@ async def get_client(client_id: str, db: AsyncSession = Depends(get_db)):
             "id": str(client.id),
             "name": client.name,
             "email": client.email,
-            "status": client.status or "Active",
+            "wallet_address": client.wallet_address,
+            "status": client.status.value if hasattr(client.status, 'value') else str(client.status) if client.status else "active",
             "tier": client.settings.get("tier", "Standard") if client.settings else "Standard",
             "tokenName": client.settings.get("tokenName") if client.settings else None,
             "tokenSymbol": client.settings.get("tokenSymbol") if client.settings else None,

@@ -1,5 +1,4 @@
 
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -11,12 +10,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-git add .
-git commit -m "Fix CORS hardcoded"
-git push origin main
-
-
-
 
 """
 Pipe Labs Dashboard - Main FastAPI Application

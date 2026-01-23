@@ -594,62 +594,109 @@ async def send_order(
         if not client:
             raise HTTPException(status_code=404, detail="Client not found")
         
-        # Get active API key for the exchange
-        api_key_result = await db.execute(
-            select(ExchangeAPIKey).where(
-                ExchangeAPIKey.client_id == uuid.UUID(client_id),
-                ExchangeAPIKey.exchange == order_data.exchange,
-                ExchangeAPIKey.is_active == True
-            )
-        )
-        api_key = api_key_result.scalar_one_or_none()
-        
-        if not api_key:
+        # Validate order data
+        if not order_data.exchange:
             raise HTTPException(
                 status_code=400,
-                detail=f"No active API key found for exchange {order_data.exchange}"
+                detail="Exchange is required"
             )
         
-        # Validate order data
         if order_data.order_type == "LIMIT" and not order_data.price:
             raise HTTPException(
                 status_code=400,
                 detail="Price is required for LIMIT orders"
             )
         
+        # Normalize exchange name for matching (handle case variations)
+        exchange_normalized = order_data.exchange.lower().replace('-', '_').replace(' ', '_')
+        
+        # Get active API key for the exchange (match normalized exchange name)
+        api_key_result = await db.execute(
+            select(ExchangeAPIKey).where(
+                ExchangeAPIKey.client_id == uuid.UUID(client_id),
+                ExchangeAPIKey.is_active == True
+            )
+        )
+        api_keys = api_key_result.scalars().all()
+        
+        # Find matching API key (normalize both for comparison)
+        api_key = None
+        for key in api_keys:
+            key_exchange_normalized = str(key.exchange).lower().replace('-', '_').replace(' ', '_')
+            if key_exchange_normalized == exchange_normalized:
+                api_key = key
+                break
+        
+        if not api_key:
+            available_exchanges = [str(k.exchange) for k in api_keys]
+            raise HTTPException(
+                status_code=400,
+                detail=f"No active API key found for exchange {order_data.exchange}. Available exchanges: {', '.join(available_exchanges)}"
+            )
+        
         # Get account name for client
         account_name = f"client_{client.name.lower().replace(' ', '_')}"
         
-        # Import HummingbotService
-        from app.services.hummingbot import hummingbot_service
+        # Get connector name from API key (use the stored exchange value)
+        connector_name = str(api_key.exchange).lower()
         
         # Format trading pair (ensure it's in correct format)
         trading_pair = order_data.trading_pair.upper().replace('-', '/')
         
-        # Place order via Hummingbot
-        if order_data.order_type == "MARKET":
-            # For market orders, use a different endpoint or get current price
-            # For now, we'll use limit order with market price approximation
-            # TODO: Implement proper market order endpoint
+        # Place order via Trading Bridge
+        import httpx
+        trading_bridge_url = getattr(settings, 'TRADING_BRIDGE_URL', 'https://trading-bridge-production.up.railway.app')
+        
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                order_payload = {
+                    "account_name": account_name,
+                    "connector_name": connector_name,
+                    "trading_pair": trading_pair,
+                    "side": order_data.side.lower(),
+                    "order_type": order_data.order_type.lower(),
+                    "amount": float(order_data.quantity)
+                }
+                
+                if order_data.order_type.upper() == "LIMIT":
+                    order_payload["price"] = float(order_data.price)
+                
+                logger.info(f"📤 Placing order via Trading Bridge: {order_payload}")
+                
+                response = await client.post(
+                    f"{trading_bridge_url}/orders/place",
+                    json=order_payload
+                )
+                
+                if response.status_code == 404:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Account {account_name} or connector {connector_name} not found in Trading Bridge. Please ensure API keys are configured."
+                    )
+                
+                response.raise_for_status()
+                result = response.json()
+                
+                logger.info(f"✅ Order placed successfully: {result}")
+                
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ Trading Bridge HTTP error: {e.response.status_code} - {e.response.text}")
             raise HTTPException(
-                status_code=501,
-                detail="Market orders not yet implemented. Please use LIMIT orders."
+                status_code=500,
+                detail=f"Failed to place order: {e.response.text}"
             )
-        else:
-            # LIMIT order
-            result = await hummingbot_service.place_limit_order(
-                account_name=account_name,
-                connector=order_data.exchange.lower(),
-                trading_pair=trading_pair,
-                side=order_data.side.lower(),
-                price=float(order_data.price),
-                amount=float(order_data.quantity)
+        except Exception as e:
+            logger.error(f"❌ Failed to place order: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to place order: {str(e)}"
             )
         
         return {
             "success": True,
             "message": "Order placed successfully",
-            "order_id": result.get("order_id"),
+            "order_id": result.get("order_id") or result.get("id"),
+            "order": result,
             "account_name": account_name,
             "trading_pair": trading_pair,
             "side": order_data.side,
@@ -660,5 +707,5 @@ async def send_order(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to place order: {e}")
+        logger.error(f"❌ Failed to place order: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to place order: {str(e)}")

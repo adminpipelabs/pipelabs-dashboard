@@ -96,12 +96,22 @@ async def create_api_key(
         
         # Encrypt sensitive data before storing
         try:
+            if not data.api_key or not data.api_secret:
+                raise ValueError("API key and API secret are required")
+            
             encrypted_key = encrypt_api_key(data.api_key)
             encrypted_secret = encrypt_api_key(data.api_secret)
             encrypted_passphrase = encrypt_api_key(data.passphrase) if data.passphrase else None
+            
+            # Validate encryption didn't return None or empty
+            if not encrypted_key or not encrypted_secret:
+                logger.error(f"❌ Encryption returned empty values")
+                raise ValueError("Encryption failed: returned empty values")
+            
             logger.info(f"✅ Encryption successful for exchange {exchange_value}")
+            logger.debug(f"Encrypted key length: {len(encrypted_key)}, secret length: {len(encrypted_secret)}")
         except Exception as e:
-            logger.error(f"❌ Encryption failed: {e}")
+            logger.error(f"❌ Encryption failed: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail=f"Failed to encrypt API keys: {str(e)}")
         
         # Create API key record (store encrypted values in model fields)

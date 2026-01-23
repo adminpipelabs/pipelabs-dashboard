@@ -148,13 +148,13 @@ class HummingbotService:
             logger.info(f"Created Hummingbot account: {account_name}")
             
             # 3. Decrypt API keys
-            api_key = decrypt_api_key(api_key_record.api_key_encrypted)
-            api_secret = decrypt_api_key(api_key_record.api_secret_encrypted)
+            api_key = decrypt_api_key(api_key_record.api_key)
+            api_secret = decrypt_api_key(api_key_record.api_secret)
             
             # 4. Prepare extra params
             extra_params = {}
-            if api_key_record.passphrase_encrypted:
-                extra_params["memo"] = decrypt_api_key(api_key_record.passphrase_encrypted)
+            if api_key_record.passphrase:
+                extra_params["memo"] = decrypt_api_key(api_key_record.passphrase)
             
             # 5. Add connector
             connector_name = api_key_record.exchange.value.lower()

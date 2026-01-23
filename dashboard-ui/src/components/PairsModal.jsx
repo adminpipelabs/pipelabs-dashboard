@@ -27,6 +27,7 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { adminAPI } from '../services/api';
+import { cacheExchangeMetadata, getCachedExchangeMetadata } from '../utils/exchangeCache';
 
 export default function PairsModal({ open, onClose, clientId, clientName, onSuccess }) {
   const [loading, setLoading] = useState(false);
@@ -56,6 +57,14 @@ export default function PairsModal({ open, onClose, clientId, clientName, onSucc
   const loadExchanges = async () => {
     setLoadingExchanges(true);
     setError(null);
+    
+    // Try to load from cache first (for offline/quick loading)
+    const cached = getCachedExchangeMetadata(clientId);
+    if (cached && cached.length > 0) {
+      setExchanges(cached);
+      setLoadingExchanges(false);
+    }
+    
     try {
       const apiKeys = await adminAPI.getClientAPIKeys(clientId);
       // Filter only active exchanges
@@ -66,6 +75,10 @@ export default function PairsModal({ open, onClose, clientId, clientName, onSucc
           exchange: key.exchange,
           label: key.label || key.exchange,
         }));
+      
+      // Cache the metadata (NOT the keys themselves)
+      cacheExchangeMetadata(clientId, activeExchanges);
+      
       setExchanges(activeExchanges);
       
       if (activeExchanges.length === 0) {
@@ -73,7 +86,13 @@ export default function PairsModal({ open, onClose, clientId, clientName, onSucc
       }
     } catch (err) {
       console.error('Failed to load exchanges:', err);
-      setError('Failed to load exchanges. Please try again.');
+      
+      // If we have cached data, use it even if server fails
+      if (cached && cached.length > 0) {
+        setError('Using cached exchange list. Server unavailable.');
+      } else {
+        setError('Failed to load exchanges. Please try again.');
+      }
     } finally {
       setLoadingExchanges(false);
     }

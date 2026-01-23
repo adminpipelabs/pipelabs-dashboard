@@ -91,6 +91,31 @@ export const adminAPI = {
       method: 'DELETE',
     });
   },
+
+  // Trading Pairs / Bots Management
+  async getClientPairs(clientId) {
+    return apiCall(`/api/admin/clients/${clientId}/pairs`);
+  },
+
+  async createPair(clientId, data) {
+    return apiCall(`/api/admin/clients/${clientId}/pairs`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updatePair(pairId, data) {
+    return apiCall(`/api/admin/pairs/${pairId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deletePair(pairId) {
+    return apiCall(`/api/admin/pairs/${pairId}`, {
+      method: 'DELETE',
+    });
+  },
   async getDashboard() {
     if (USE_MOCK) {
       await new Promise(resolve => setTimeout(resolve, 800));

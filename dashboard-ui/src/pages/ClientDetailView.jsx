@@ -29,6 +29,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useParams, useNavigate } from 'react-router-dom';
 import { adminAPI } from '../services/api';
 import APIKeysManagement from './APIKeysManagement';
+import BotsModal from '../components/BotsModal';
+import AddIcon from '@mui/icons-material/Add';
 
 export default function ClientDetailView() {
   const { clientId } = useParams();
@@ -39,6 +41,7 @@ export default function ClientDetailView() {
   const [selectedToken, setSelectedToken] = useState('all');
   const [selectedExchange, setSelectedExchange] = useState('all');
   const [activeTab, setActiveTab] = useState(0);
+  const [showBotsModal, setShowBotsModal] = useState(false);
 
   const loadClientData = useCallback(async () => {
     setLoading(true);
@@ -438,6 +441,13 @@ export default function ClientDetailView() {
               Trading Bots {(selectedToken !== 'all' || selectedExchange !== 'all') && 
                 `(${getFilteredBots().length} of ${clientData.bots.length})`}
             </Typography>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setShowBotsModal(true)}
+            >
+              Add Bot
+            </Button>
           </Box>
           <TableContainer>
             <Table>
@@ -590,6 +600,18 @@ export default function ClientDetailView() {
           </CardContent>
         </Card>
       )}
+
+      {/* Bots Modal */}
+      <BotsModal
+        open={showBotsModal}
+        onClose={() => setShowBotsModal(false)}
+        clientId={clientId}
+        clientName={clientData?.client?.name || ''}
+        onSuccess={() => {
+          loadClientData();
+          setShowBotsModal(false);
+        }}
+      />
     </Box>
   );
 }

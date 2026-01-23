@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 from app.core.database import get_db
 from app.api.auth import get_current_user
-from app.models import Client, ClientPair, PnLSnapshot, ExchangeAPIKey
+from app.models import Client, ClientPair, ExchangeAPIKey
 from app.services.hummingbot import hummingbot_service
 
 router = APIRouter()
@@ -57,18 +57,31 @@ async def get_portfolio(
     
     active_bots = sum(1 for p in pairs if p.status.value == "active")
     
-    # Get latest P&L snapshot (simplified - would aggregate in production)
-    pnl_result = await db.execute(
-        select(PnLSnapshot)
-        .where(PnLSnapshot.client_id == current_user.id)
-        .order_by(PnLSnapshot.timestamp.desc())
-        .limit(1)
-    )
-    latest_pnl = pnl_result.scalar_one_or_none()
+    # Get volume from Hummingbot (7 days)
+    account_name = f"client_{current_user.name.lower().replace(' ', '_')}"
+    volume_data = await hummingbot_service.get_trade_history(account_name, limit=1000)
+    
+    # Calculate 24h volume from trades
+    from datetime import datetime, timedelta
+    cutoff_24h = datetime.utcnow() - timedelta(hours=24)
+    volume_24h = 0.0
+    for trade in volume_data:
+        try:
+            trade_time = datetime.fromisoformat(trade.get("timestamp", "").replace("Z", "+00:00"))
+            if trade_time >= cutoff_24h:
+                price = float(trade.get("price", 0))
+                amount = float(trade.get("amount", 0))
+                volume_24h += price * amount
+        except:
+            pass
+    
+    # Calculate total P&L from trades (simplified - would need position tracking for accurate P&L)
+    # For now, return 0 and let frontend calculate from trade data
+    total_pnl = 0.0  # TODO: Calculate from trade history and positions
     
     return PortfolioOverview(
-        total_pnl=float(latest_pnl.realized_pnl) if latest_pnl else 0.0,
-        volume_24h=float(latest_pnl.volume_24h) if latest_pnl else 0.0,
+        total_pnl=total_pnl,
+        volume_24h=volume_24h,
         active_bots=active_bots,
         total_bots=len(pairs),
         alerts_count=0  # TODO: count unacknowledged alerts
@@ -106,24 +119,46 @@ async def get_pnl_history(
     days: int = 7,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get P&L history for client"""
-    result = await db.execute(
-        select(PnLSnapshot)
-        .where(PnLSnapshot.client_id == current_user.id)
-        .order_by(PnLSnapshot.timestamp.desc())
-        .limit(days * 24)  # hourly snapshots
-    )
-    snapshots = result.scalars().all()
+    """Get P&L history for client (calculated from trade history)"""
+    account_name = f"client_{current_user.name.lower().replace(' ', '_')}"
     
-    return [
-        PnLHistory(
-            timestamp=s.timestamp.isoformat(),
-            realized_pnl=float(s.realized_pnl),
-            unrealized_pnl=float(s.unrealized_pnl),
-            volume_24h=float(s.volume_24h)
-        )
-        for s in snapshots
-    ]
+    try:
+        # Get trade history from Hummingbot
+        trades = await hummingbot_service.get_trade_history(account_name, limit=10000)
+        
+        # Group trades by day and calculate daily metrics
+        from collections import defaultdict
+        from datetime import datetime, timedelta
+        
+        daily_data = defaultdict(lambda: {"realized_pnl": 0.0, "unrealized_pnl": 0.0, "volume_24h": 0.0})
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        
+        for trade in trades:
+            try:
+                trade_time = datetime.fromisoformat(trade.get("timestamp", "").replace("Z", "+00:00"))
+                if trade_time >= cutoff_date:
+                    day_key = trade_time.date().isoformat()
+                    price = float(trade.get("price", 0))
+                    amount = float(trade.get("amount", 0))
+                    daily_data[day_key]["volume_24h"] += price * amount
+                    # P&L calculation would require position tracking - simplified for now
+            except:
+                pass
+        
+        # Convert to list format
+        result = []
+        for day, data in sorted(daily_data.items()):
+            result.append(PnLHistory(
+                timestamp=f"{day}T00:00:00Z",
+                realized_pnl=data["realized_pnl"],
+                unrealized_pnl=data["unrealized_pnl"],
+                volume_24h=data["volume_24h"]
+            ))
+        
+        return result
+    except Exception as e:
+        # Return empty list if Hummingbot unavailable
+        return []
 
 
 class BalanceResponse(BaseModel):

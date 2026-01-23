@@ -1,4 +1,4 @@
-// Build trigger v4 - FORCE FRONTEND REBUILD v0.1.3 - Order endpoint integration complete
+// Build trigger v5 - FORCE FRONTEND REBUILD v0.1.4 - Railway deployment trigger
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { Portfolio, Orders, Bots, Agent } from './pages';

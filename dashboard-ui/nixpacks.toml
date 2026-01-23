@@ -8,7 +8,7 @@ cmds = ["npm install", "npm install -g serve"]
 
 [phases.build]
 cmds = ["npm run build"]
-# Frontend rebuild trigger - version 0.1.3 - Order endpoint integration
+# Frontend rebuild trigger - version 0.1.4 - Force Railway deployment
 
 [start]
 cmd = "npx serve -s build -p 3000"

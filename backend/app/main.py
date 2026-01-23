@@ -126,12 +126,12 @@ async def lifespan(app: FastAPI):
                 BEGIN
                     -- Fix column names: rename _encrypted columns to match model
                     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='exchange_api_keys') THEN
-                        -- Rename api_key_encrypted to api_key if it exists (even if api_key already exists, drop old one)
+                        -- CRITICAL: Rename api_key_encrypted to api_key
                         IF EXISTS (SELECT 1 FROM information_schema.columns 
                                    WHERE table_name='exchange_api_keys' AND column_name='api_key_encrypted') THEN
                             IF EXISTS (SELECT 1 FROM information_schema.columns 
                                       WHERE table_name='exchange_api_keys' AND column_name='api_key') THEN
-                                -- Both exist, drop the _encrypted one
+                                -- Both exist, drop the _encrypted one (data should be in api_key)
                                 ALTER TABLE exchange_api_keys DROP COLUMN api_key_encrypted;
                                 RAISE NOTICE 'Dropped duplicate api_key_encrypted column';
                             ELSE
@@ -141,7 +141,7 @@ async def lifespan(app: FastAPI):
                             END IF;
                         END IF;
                         
-                        -- Rename api_secret_encrypted to api_secret if it exists
+                        -- CRITICAL: Rename api_secret_encrypted to api_secret
                         IF EXISTS (SELECT 1 FROM information_schema.columns 
                                    WHERE table_name='exchange_api_keys' AND column_name='api_secret_encrypted') THEN
                             IF EXISTS (SELECT 1 FROM information_schema.columns 
@@ -154,7 +154,7 @@ async def lifespan(app: FastAPI):
                             END IF;
                         END IF;
                         
-                        -- Rename passphrase_encrypted to passphrase if it exists
+                        -- CRITICAL: Rename passphrase_encrypted to passphrase
                         IF EXISTS (SELECT 1 FROM information_schema.columns 
                                    WHERE table_name='exchange_api_keys' AND column_name='passphrase_encrypted') THEN
                             IF EXISTS (SELECT 1 FROM information_schema.columns 
@@ -178,6 +178,20 @@ async def lifespan(app: FastAPI):
                                    WHERE table_name='exchange_api_keys' AND column_name='api_secret' AND is_nullable='YES') THEN
                             ALTER TABLE exchange_api_keys ALTER COLUMN api_secret SET NOT NULL;
                             RAISE NOTICE 'Set api_secret to NOT NULL';
+                        END IF;
+                        
+                        -- Add updated_at column if it doesn't exist
+                        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='exchange_api_keys' AND column_name='updated_at') THEN
+                            ALTER TABLE exchange_api_keys ADD COLUMN updated_at TIMESTAMP WITHOUT TIME ZONE;
+                            RAISE NOTICE 'Added updated_at column';
+                        END IF;
+                        
+                        -- Make updated_at nullable if it's NOT NULL (to avoid constraint violations)
+                        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                                   WHERE table_name='exchange_api_keys' AND column_name='updated_at' AND is_nullable='NO') THEN
+                            ALTER TABLE exchange_api_keys ALTER COLUMN updated_at DROP NOT NULL;
+                            RAISE NOTICE 'Made updated_at nullable';
                         END IF;
                     END IF;
                 END $$;

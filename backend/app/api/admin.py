@@ -505,6 +505,7 @@ async def add_client_api_key(
         # Normalize exchange string
         exchange_value = key_data.exchange.lower().replace('-', '_')
         
+        now = datetime.utcnow()
         new_key = ExchangeAPIKey(
             id=uuid.uuid4(),
             client_id=uuid.UUID(client_id),
@@ -515,7 +516,8 @@ async def add_client_api_key(
             label=key_data.label or f"{key_data.exchange} API Key",
             is_testnet=key_data.is_testnet or False,
             is_active=True,
-            created_at=datetime.utcnow()
+            created_at=now,
+            updated_at=now  # Set updated_at to avoid NOT NULL constraint violation
         )
         
         logger.info(f"💾 Saving API key to database...")

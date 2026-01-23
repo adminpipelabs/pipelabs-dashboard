@@ -115,6 +115,7 @@ async def create_api_key(
             raise HTTPException(status_code=500, detail=f"Failed to encrypt API keys: {str(e)}")
         
         # Create API key record (store encrypted values in model fields)
+        now = datetime.utcnow()
         api_key = ExchangeAPIKey(
             client_id=uuid.UUID(data.client_id),
             exchange=exchange_value,
@@ -124,6 +125,8 @@ async def create_api_key(
             passphrase=encrypted_passphrase,  # Store encrypted value (or None)
             is_testnet=data.is_testnet,
             is_active=True,
+            created_at=now,
+            updated_at=now,  # Set updated_at to avoid NOT NULL constraint violation
         )
         
         db.add(api_key)

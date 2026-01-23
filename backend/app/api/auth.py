@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 import jwt
 from passlib.context import CryptContext
 from app.core.security import verify_wallet_signature, detect_wallet_type
+from web3 import Web3
 import pyotp
 import qrcode
 import io

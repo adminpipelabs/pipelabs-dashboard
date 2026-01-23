@@ -33,8 +33,6 @@ SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-w3 = Web3()
-
 # ==================== Request/Response Models ====================
 
 class WalletLoginRequest(BaseModel):

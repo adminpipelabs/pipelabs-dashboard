@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.api.auth import get_current_user
 from app.models import Client, ClientPair, ExchangeAPIKey
 from app.services.hummingbot import hummingbot_service
+from sqlalchemy import select
 
 router = APIRouter()
 

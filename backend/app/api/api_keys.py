@@ -48,9 +48,9 @@ class APIKeyResponse(BaseModel):
     is_active: bool
     is_testnet: bool
     created_at: datetime
-    updated_at: datetime
-    last_verified_at: Optional[datetime]
-    notes: Optional[str]
+    updated_at: Optional[datetime] = None
+    last_verified_at: Optional[datetime] = None
+    notes: Optional[str] = None
     # Never return the actual keys in responses
     api_key_preview: str  # Only show first/last few chars
     has_passphrase: bool
@@ -78,21 +78,21 @@ async def create_api_key(
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     
-    # Encrypt sensitive data
+    # Encrypt sensitive data before storing
     encrypted_key = encrypt_api_key(data.api_key)
     encrypted_secret = encrypt_api_key(data.api_secret)
     encrypted_passphrase = encrypt_api_key(data.passphrase) if data.passphrase else None
     
-    # Create API key record
+    # Create API key record (store encrypted values in model fields)
     api_key = ExchangeAPIKey(
         client_id=uuid.UUID(data.client_id),
         exchange=data.exchange,
         label=data.label,
-        api_key_encrypted=encrypted_key,
-        api_secret_encrypted=encrypted_secret,
-        passphrase_encrypted=encrypted_passphrase,
+        api_key=encrypted_key,  # Store encrypted value
+        api_secret=encrypted_secret,  # Store encrypted value
+        passphrase=encrypted_passphrase,  # Store encrypted value (or None)
         is_testnet=data.is_testnet,
-        notes=data.notes,
+        is_active=True,
     )
     
     db.add(api_key)
@@ -123,9 +123,9 @@ async def create_api_key(
         is_active=api_key.is_active,
         is_testnet=api_key.is_testnet,
         created_at=api_key.created_at,
-        updated_at=api_key.updated_at,
-        last_verified_at=api_key.last_verified_at,
-        notes=api_key.notes,
+        updated_at=api_key.created_at,  # Model doesn't have updated_at field
+        last_verified_at=None,  # Not tracked yet
+        notes=None,  # Not in model yet
         api_key_preview=api_key_preview,
         has_passphrase=bool(data.passphrase),
     )

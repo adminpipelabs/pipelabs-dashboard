@@ -23,7 +23,7 @@ class ClientStatus(str, PyEnum):
 # Client Model
 class Client(Base):
     __tablename__ = "clients"
-    
+
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     wallet_address: Mapped[Optional[str]] = mapped_column(String(42), unique=True, nullable=True, index=True)
@@ -36,7 +36,7 @@ class Client(Base):
     role: Mapped[str] = mapped_column(String(50), default="client")
     # Settings (JSON)
     settings: Mapped[Optional[dict]] = mapped_column(JSON, default=dict)
-    
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -47,7 +47,7 @@ class Client(Base):
 # Exchange API Key Model
 class ExchangeAPIKey(Base):
     __tablename__ = "exchange_api_keys"
-    
+
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False)
     
@@ -61,6 +61,6 @@ class ExchangeAPIKey(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    
+
     # Relationships
     client: Mapped["Client"] = relationship("Client", back_populates="api_keys")

@@ -114,14 +114,16 @@ async def onboard_client(
     db.add(new_client)
     await db.flush()  # Get the client ID
     
-    # Add API keys
+    # Add API keys (encrypt before storing)
+    from app.core.encryption import encrypt_api_key
     for key_data in api_keys_data:
         new_key = ExchangeAPIKey(
             id=uuid.uuid4(),
             client_id=new_client.id,
             exchange=key_data.get("exchange"),
-            api_key=key_data.get("apiKey"),
-            api_secret=key_data.get("apiSecret"),
+            api_key=encrypt_api_key(key_data.get("apiKey")),  # Encrypt before storing
+            api_secret=encrypt_api_key(key_data.get("apiSecret")),  # Encrypt before storing
+            passphrase=encrypt_api_key(key_data.get("passphrase")) if key_data.get("passphrase") else None,
             label=key_data.get("label") or key_data.get("exchange"),
             is_testnet=False,
             is_active=True,

@@ -9,6 +9,7 @@ from sqlalchemy import text
 from app.core.database import engine, Base
 from app.core.config import settings
 from app.api.admin import router as admin_router
+from app.api.admin_quick import router as admin_quick_router
 from app.api.agent import router as agent_router
 from app.api.auth import router as auth_router
 
@@ -79,6 +80,7 @@ app.add_middleware(
 )
 
 app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
+app.include_router(admin_quick_router, prefix="/api/admin", tags=["Admin"])
 app.include_router(agent_router, prefix="/api/agent", tags=["Agent"])
 app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
 

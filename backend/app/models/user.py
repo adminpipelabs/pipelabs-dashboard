@@ -63,7 +63,7 @@ class Admin(Base):
     can_manage_admins: Mapped[bool] = mapped_column(Boolean, default=False)
     
     # Security
-    ip_whitelist: Mapped[str | None] = mapped_column(String(500), nullable=True)  # Comma-separated IPs
+    ip_whitelist: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)  # Comma-separated IPs
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

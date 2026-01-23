@@ -64,7 +64,7 @@ async def agent_chat(
     # Build client scope
     account_name = f"client_{client.name.lower().replace(' ', '_')}"
     allowed_accounts = [account_name]
-    allowed_exchanges = list(set([key.exchange.value.lower() for key in api_keys]))
+    allowed_exchanges = list(set([str(key.exchange).lower() for key in api_keys]))
     
     # TODO: Get allowed pairs from database
     # For now, default to common pairs
@@ -127,7 +127,7 @@ async def execute_command(
     
     account_name = f"client_{client.name.lower().replace(' ', '_')}"
     allowed_accounts = [account_name]
-    allowed_exchanges = list(set([key.exchange.value.lower() for key in api_keys]))
+    allowed_exchanges = list(set([str(key.exchange).lower() for key in api_keys]))
     allowed_pairs = ["SHARP-USDT", "BTC-USDT", "ETH-USDT", "SOL-USDT"]
     
     scope = ClientScope(
@@ -176,7 +176,7 @@ async def get_client_scope(
     return {
         "client_name": client.name,
         "account_name": account_name,
-        "allowed_exchanges": list(set([key.exchange.value for key in api_keys])),
+        "allowed_exchanges": list(set([str(key.exchange) for key in api_keys])),
         "allowed_pairs": ["SHARP-USDT", "BTC-USDT", "ETH-USDT", "SOL-USDT"],
         "max_spread": 0.5,
         "max_daily_volume": 50000

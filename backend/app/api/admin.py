@@ -195,8 +195,8 @@ async def get_clients(
             connectors = [
                 {
                     "id": str(key.id),
-                    "exchange": key.exchange.value if hasattr(key.exchange, 'value') else str(key.exchange),
-                    "label": key.label or f"{key.exchange.value if hasattr(key.exchange, 'value') else str(key.exchange)} Account",
+                    "exchange": str(key.exchange),
+                    "label": key.label or f"{key.exchange} Account",
                     "is_testnet": key.is_testnet,
                     "is_active": key.is_active
                 }

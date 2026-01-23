@@ -74,7 +74,7 @@ class ScopedAgentService:
         # Generate account names from client name and exchange names
         client_name_normalized = client.name.lower().replace(' ', '_')
         allowed_accounts = [f"client_{client_name_normalized}"]
-        allowed_exchanges = list(set(e.exchange.value if hasattr(e.exchange, 'value') else str(e.exchange) for e in exchanges))
+        allowed_exchanges = list(set(str(e.exchange) for e in exchanges))
         allowed_pairs = list(set(p.trading_pair for p in pairs))
         
         client_settings = client.settings or {}

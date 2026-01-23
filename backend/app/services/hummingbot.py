@@ -157,7 +157,7 @@ class HummingbotService:
                 extra_params["memo"] = decrypt_api_key(api_key_record.passphrase)
             
             # 5. Add connector
-            connector_name = api_key_record.exchange.value.lower()
+            connector_name = str(api_key_record.exchange).lower()  # Exchange is now a string
             await self.add_connector(
                 account_name=account_name,
                 connector=connector_name,

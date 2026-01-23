@@ -67,6 +67,19 @@ export default function ClientDetailView() {
     loadClientData();
   }, [loadClientData]);
 
+  // Refresh data when modals close to ensure latest API keys are loaded
+  const handleModalClose = (modalName) => {
+    if (modalName === 'bots') {
+      setShowBotsModal(false);
+    } else if (modalName === 'pairs') {
+      setShowPairsModal(false);
+    } else if (modalName === 'sendOrder') {
+      setShowSendOrderModal(false);
+    }
+    // Reload client data to get latest API keys and pairs
+    loadClientData();
+  };
+
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -643,31 +656,31 @@ export default function ClientDetailView() {
       {/* Bots Modal */}
       <BotsModal
         open={showBotsModal}
-        onClose={() => setShowBotsModal(false)}
+        onClose={() => handleModalClose('bots')}
         clientId={clientId}
         clientName={clientData?.client?.name || ''}
         onSuccess={() => {
           loadClientData();
-          setShowBotsModal(false);
+          handleModalClose('bots');
         }}
       />
 
       {/* Send Order Modal */}
       <SendOrderModal
         open={showSendOrderModal}
-        onClose={() => setShowSendOrderModal(false)}
+        onClose={() => handleModalClose('sendOrder')}
         clientId={clientId}
         clientName={clientData?.client?.name || ''}
         onSuccess={() => {
           loadClientData();
-          setShowSendOrderModal(false);
+          handleModalClose('sendOrder');
         }}
       />
 
       {/* Trading Pairs Modal */}
       <PairsModal
         open={showPairsModal}
-        onClose={() => setShowPairsModal(false)}
+        onClose={() => handleModalClose('pairs')}
         clientId={clientId}
         clientName={clientData?.client?.name || ''}
         onSuccess={() => {

@@ -161,11 +161,11 @@ async def get_client_api_keys(
             is_active=key.is_active,
             is_testnet=key.is_testnet,
             created_at=key.created_at,
-            updated_at=key.updated_at,
-            last_verified_at=key.last_verified_at,
-            notes=key.notes,
+            updated_at=key.created_at,  # Model doesn't have updated_at field
+            last_verified_at=None,  # Not tracked yet
+            notes=None,  # Notes field not in model yet
             api_key_preview=api_key_preview,
-            has_passphrase=bool(key.passphrase_encrypted),
+            has_passphrase=bool(key.passphrase),
         ))
     
     return response

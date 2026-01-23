@@ -221,7 +221,12 @@ app.include_router(clients_router, prefix="/api/clients", tags=["Clients"])
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "version": "0.1.3"}
+    return {
+        "status": "ok", 
+        "version": "0.1.4",
+        "deployed_at": "2026-01-22T22:05:00Z",
+        "commit": "677a15c"
+    }
 
 
 @app.get("/")

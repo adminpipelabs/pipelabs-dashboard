@@ -137,50 +137,68 @@ class HummingbotService:
         api_key_record: ExchangeAPIKey
     ) -> Dict:
         """
-        Configure a complete Hummingbot account for a client
+        Configure a complete Trading Bridge account for a client
         Called when admin adds API keys in dashboard
         """
         try:
-            # 1. Create account name (e.g., "client_sharp")
+            # 1. Create account name (e.g., "client_sharp_foundation")
             account_name = f"client_{client_name.lower().replace(' ', '_')}"
             
-            # 2. Create Hummingbot account
-            await self.create_account(account_name)
-            logger.info(f"Created Hummingbot account: {account_name}")
+            # 2. Get trading bridge URL
+            trading_bridge_url = getattr(settings, 'TRADING_BRIDGE_URL', 'https://trading-bridge-production.up.railway.app')
             
             # 3. Decrypt API keys
             api_key = decrypt_api_key(api_key_record.api_key)
             api_secret = decrypt_api_key(api_key_record.api_secret)
             
-            # 4. Prepare extra params
-            extra_params = {}
-            if api_key_record.passphrase:
-                extra_params["memo"] = decrypt_api_key(api_key_record.passphrase)
-            
-            # 5. Add connector
-            connector_name = str(api_key_record.exchange).lower()  # Exchange is now a string
-            await self.add_connector(
-                account_name=account_name,
-                connector=connector_name,
-                api_key=api_key,
-                api_secret=api_secret,
-                extra_params=extra_params
-            )
-            logger.info(f"Added {connector_name} connector to {account_name}")
+            # 4. Create account in Trading Bridge (if not exists)
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                try:
+                    # Try to create account (idempotent - safe to call multiple times)
+                    create_response = await client.post(
+                        f"{trading_bridge_url}/accounts/create",
+                        json={"account_name": account_name}
+                    )
+                    if create_response.status_code in [200, 201, 409]:  # 409 = already exists
+                        logger.info(f"✅ Trading Bridge account ready: {account_name}")
+                    else:
+                        logger.warning(f"⚠️ Account creation response: {create_response.status_code}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Account may already exist: {e}")
+                
+                # 5. Add connector to Trading Bridge
+                connector_name = str(api_key_record.exchange).lower()
+                connector_payload = {
+                    "account_name": account_name,
+                    "connector_name": connector_name,
+                    "api_key": api_key,
+                    "api_secret": api_secret,
+                }
+                
+                # Add passphrase/memo if exists
+                if api_key_record.passphrase:
+                    connector_payload["memo"] = decrypt_api_key(api_key_record.passphrase)
+                
+                connector_response = await client.post(
+                    f"{trading_bridge_url}/connectors/add",
+                    json=connector_payload
+                )
+                connector_response.raise_for_status()
+                logger.info(f"✅ Added {connector_name} connector to Trading Bridge account {account_name}")
             
             return {
                 "success": True,
                 "account_name": account_name,
                 "connector": connector_name,
-                "message": f"Successfully configured {account_name} with {connector_name}"
+                "message": f"Successfully configured {account_name} with {connector_name} in Trading Bridge"
             }
             
         except Exception as e:
-            logger.error(f"Failed to configure client account: {e}")
+            logger.error(f"❌ Failed to configure Trading Bridge account: {e}", exc_info=True)
             return {
                 "success": False,
                 "error": str(e),
-                "message": "Failed to configure Hummingbot account"
+                "message": "Failed to configure Trading Bridge account"
             }
     
     async def place_limit_order(

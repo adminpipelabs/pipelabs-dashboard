@@ -26,7 +26,8 @@ class Client(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    wallet_address: Mapped[Optional[str]] = mapped_column(String(42), unique=True, nullable=True, index=True)
+    wallet_address: Mapped[Optional[str]] = mapped_column(String(88), unique=True, nullable=True, index=True)  # Increased to 88 for Solana (base58, max 44 chars)
+    wallet_type: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, default="EVM")  # "EVM" or "Solana"
     email: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True)
     password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     

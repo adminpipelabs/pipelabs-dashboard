@@ -11,8 +11,7 @@ from sqlalchemy import select
 from datetime import datetime, timedelta
 import jwt
 from passlib.context import CryptContext
-from eth_account.messages import encode_defunct
-from web3 import Web3
+from app.core.security import verify_wallet_signature, detect_wallet_type
 import pyotp
 import qrcode
 import io
@@ -92,26 +91,7 @@ def hash_password(password: str) -> str:
     """Hash password"""
     return pwd_context.hash(password)
 
-def verify_wallet_signature(wallet_address: str, message: str, signature: str) -> bool:
-    """
-    Verify Ethereum wallet signature
-    Used for MetaMask login
-    """
-    try:
-        # Normalize address
-        wallet_address = Web3.to_checksum_address(wallet_address)
-        
-        # Create message hash
-        message_hash = encode_defunct(text=message)
-        
-        # Recover address from signature
-        recovered_address = w3.eth.account.recover_message(message_hash, signature=signature)
-        
-        # Compare addresses (case-insensitive)
-        return recovered_address.lower() == wallet_address.lower()
-    except Exception as e:
-        print(f"Signature verification error: {e}")
-        return False
+# Wallet signature verification moved to app.core.security
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),

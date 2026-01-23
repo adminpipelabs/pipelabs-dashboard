@@ -19,11 +19,13 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         
-        # Migration: Make email and password_hash columns nullable in clients table
+        # Migration: Make email and password_hash columns nullable, add wallet_type column
         # This allows wallet-based authentication without requiring email/password
         migrations = [
             ("email", "ALTER TABLE clients ALTER COLUMN email DROP NOT NULL"),
             ("password_hash", "ALTER TABLE clients ALTER COLUMN password_hash DROP NOT NULL"),
+            ("wallet_address_length", "ALTER TABLE clients ALTER COLUMN wallet_address TYPE VARCHAR(88)"),  # Increase for Solana
+            ("wallet_type", "ALTER TABLE clients ADD COLUMN IF NOT EXISTS wallet_type VARCHAR(10) DEFAULT 'EVM'"),
         ]
         
         for column_name, sql in migrations:

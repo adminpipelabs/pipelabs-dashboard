@@ -53,10 +53,20 @@ class QuickClientCreate(BaseModel):
     def validate_wallet(cls, v):
         if not v or not v.strip():
             raise ValueError('Wallet address is required')
-        # Basic format check
-        if not v.startswith('0x') or len(v) != 42:
-            raise ValueError('Invalid wallet address format')
-        return v.strip()
+        # Accept both EVM (0x...) and Solana (base58) addresses
+        v = v.strip()
+        if v.startswith('0x') and len(v) == 42:
+            return v  # EVM address
+        elif 32 <= len(v) <= 44:
+            # Solana address (base58, 32-44 chars)
+            try:
+                import base58
+                base58.b58decode(v)  # Validate base58
+                return v
+            except:
+                raise ValueError('Invalid wallet address format (must be EVM 0x... or Solana base58)')
+        else:
+            raise ValueError('Invalid wallet address format (must be EVM 0x... or Solana base58)')
     
     class Config:
         schema_extra = {
@@ -107,14 +117,25 @@ async def create_client_quick(
     try:
         logger.info(f"[{request_id}] Client creation started | Admin:{admin_id} | Name:{client_data.name}")
         
-        # Normalize wallet address with validation
+        # Detect and normalize wallet address with validation
+        from app.core.security import detect_wallet_type
+        from web3 import Web3
+        
+        wallet_type = detect_wallet_type(client_data.wallet_address)
+        
         try:
-            wallet = Web3.to_checksum_address(client_data.wallet_address)
+            if wallet_type == "EVM":
+                wallet = Web3.to_checksum_address(client_data.wallet_address)
+            else:
+                # Solana address - validate base58
+                import base58
+                base58.b58decode(client_data.wallet_address)  # Will raise if invalid
+                wallet = client_data.wallet_address  # Solana addresses are case-sensitive
         except Exception as e:
             logger.warning(f"[{request_id}] Invalid wallet format: {client_data.wallet_address}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid wallet address format. Must be valid EVM address (0x followed by 40 hex characters)"
+                detail=f"Invalid wallet address format. Must be valid {wallet_type} address"
             )
         
         # Optimized: Check both wallet and email in parallel if email provided
@@ -157,6 +178,7 @@ async def create_client_quick(
         client = Client(
             name=client_data.name,
             wallet_address=wallet,
+            wallet_type=wallet_type,  # Store wallet type
             email=client_data.email,
             password_hash=None,
             role="client",

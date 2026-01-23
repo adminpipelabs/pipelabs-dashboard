@@ -17,6 +17,8 @@ passlib[bcrypt]==1.7.4
 cryptography==42.0.2
 eth-account==0.10.0
 web3==6.15.1
+solders==0.20.0
+base58==2.1.1
 pyotp==2.9.0
 qrcode==7.4.2
 

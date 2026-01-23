@@ -288,36 +288,61 @@ async def get_trade_history(
     days: int = Query(7, ge=1, le=90),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get trade history from Hummingbot"""
+    """Get trade history from Trading Bridge"""
+    import httpx
+    import logging
+    logger = logging.getLogger(__name__)
+    
     account_name = f"client_{current_user.name.lower().replace(' ', '_')}"
+    trading_bridge_url = getattr(settings, 'TRADING_BRIDGE_URL', 'https://trading-bridge-production.up.railway.app')
     
     try:
-        trades = await hummingbot_service.get_trade_history(
-            account_name=account_name,
-            trading_pair=trading_pair,
-            limit=limit
-        )
+        # Get trade history from Trading Bridge
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            params = {"account": account_name}
+            if trading_pair:
+                params["pair"] = trading_pair
+            
+            history_response = await client.get(
+                f"{trading_bridge_url}/history",
+                params=params
+            )
+            
+            if history_response.status_code == 404:
+                logger.warning(f"⚠️ Trade history not found for account {account_name}")
+                return []
+            
+            history_response.raise_for_status()
+            trades_data = history_response.json()
+            trades = trades_data.get("trades", [])
         
         # Filter by days if needed
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         filtered_trades = []
         for trade in trades:
-            trade_time = datetime.fromisoformat(trade.get("timestamp", "").replace("Z", "+00:00"))
-            if trade_time >= cutoff_date:
-                filtered_trades.append(TradeHistoryItem(
-                    id=trade.get("id", ""),
-                    exchange=trade.get("exchange", ""),
-                    trading_pair=trade.get("trading_pair", ""),
-                    side=trade.get("side", ""),
-                    price=float(trade.get("price", 0)),
-                    amount=float(trade.get("amount", 0)),
-                    fee=float(trade.get("fee", 0)),
-                    timestamp=trade.get("timestamp", ""),
-                    order_id=trade.get("order_id")
-                ))
+            try:
+                trade_time_str = trade.get("timestamp") or trade.get("time")
+                if trade_time_str:
+                    trade_time = datetime.fromisoformat(trade_time_str.replace("Z", "+00:00"))
+                    if trade_time >= cutoff_date:
+                        filtered_trades.append(TradeHistoryItem(
+                            id=trade.get("id", ""),
+                            exchange=trade.get("exchange", "") or trade.get("connector", ""),
+                            trading_pair=trade.get("trading_pair", "") or trade.get("pair", ""),
+                            side=trade.get("side", ""),
+                            price=float(trade.get("price", 0)),
+                            amount=float(trade.get("amount", 0)),
+                            fee=float(trade.get("fee", 0)),
+                            timestamp=trade_time_str,
+                            order_id=trade.get("order_id")
+                        ))
+            except Exception as e:
+                logger.warning(f"⚠️ Error processing trade: {e}")
+                continue
         
         return filtered_trades[:limit]
     except Exception as e:
+        logger.error(f"❌ Error getting trade history for {account_name}: {e}", exc_info=True)
         return []
 
 

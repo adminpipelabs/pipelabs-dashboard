@@ -43,7 +43,7 @@ class Client(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     # Relationships
     api_keys: Mapped[List["ExchangeAPIKey"]] = relationship("ExchangeAPIKey", back_populates="client", cascade="all, delete-orphan")
-    pairs: Mapped[List["ClientPair"]] = relationship("ClientPair", cascade="all, delete-orphan")
+    pairs: Mapped[List["ClientPair"]] = relationship("ClientPair", back_populates="client", cascade="all, delete-orphan")
 
 
 # Exchange API Key Model

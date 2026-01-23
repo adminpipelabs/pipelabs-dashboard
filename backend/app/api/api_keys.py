@@ -63,7 +63,7 @@ class APIKeyDetail(APIKeyResponse):
     passphrase: Optional[str]
 
 
-@router.post("/api-keys", response_model=APIKeyResponse)
+@router.post("/api-keys", response_model=APIKeyResponse, tags=["API Keys"], summary="Create API Key", description="Create a new exchange API key for a client. Keys are encrypted before storage.")
 async def create_api_key(
     data: APIKeyCreate,
     current_admin: User = Depends(get_current_admin),
@@ -71,6 +71,9 @@ async def create_api_key(
 ):
     """
     Create a new exchange API key for a client (Admin only)
+    
+    This endpoint encrypts the API key, API secret, and passphrase before storing them in the database.
+    The keys are then configured in Hummingbot for trading operations.
     """
     import logging
     logger = logging.getLogger(__name__)
@@ -161,7 +164,7 @@ async def create_api_key(
         raise HTTPException(status_code=500, detail=f"Failed to create API key: {str(e)}")
 
 
-@router.get("/clients/{client_id}/api-keys", response_model=List[APIKeyResponse])
+@router.get("/clients/{client_id}/api-keys", response_model=List[APIKeyResponse], tags=["API Keys"], summary="Get Client API Keys")
 async def get_client_api_keys(
     client_id: str,
     current_admin: User = Depends(get_current_admin),
@@ -303,7 +306,7 @@ async def update_api_key(
     )
 
 
-@router.delete("/api-keys/{key_id}")
+@router.delete("/api-keys/{key_id}", tags=["API Keys"], summary="Delete API Key")
 async def delete_api_key(
     key_id: str,
     current_admin: User = Depends(get_current_admin),
@@ -326,7 +329,7 @@ async def delete_api_key(
     return {"message": "API key deleted successfully"}
 
 
-@router.post("/api-keys/{key_id}/verify")
+@router.post("/api-keys/{key_id}/verify", tags=["API Keys"], summary="Verify API Key")
 async def verify_api_key(
     key_id: str,
     current_admin: User = Depends(get_current_admin),

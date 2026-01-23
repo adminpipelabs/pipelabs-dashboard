@@ -200,19 +200,61 @@ async def get_balances(
     # Get trading bridge URL from settings
     trading_bridge_url = getattr(settings, 'TRADING_BRIDGE_URL', 'https://trading-bridge-production.up.railway.app')
     
+    # First, get client's API keys to know which connectors should exist
+    api_keys_result = await db.execute(
+        select(ExchangeAPIKey).where(
+            ExchangeAPIKey.client_id == current_user.id,
+            ExchangeAPIKey.is_active == True
+        )
+    )
+    api_keys = api_keys_result.scalars().all()
+    
+    logger.info(f"🔍 Fetching balances for client {current_user.name} (account: {account_name}), {len(api_keys)} active API keys")
+    
     # Get balances from Trading Bridge
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
+            # First, verify account exists
+            try:
+                account_response = await client.get(f"{trading_bridge_url}/accounts/{account_name}")
+                if account_response.status_code == 404:
+                    logger.warning(f"⚠️ Account {account_name} not found in Trading Bridge. Creating it...")
+                    create_response = await client.post(
+                        f"{trading_bridge_url}/accounts/create",
+                        json={"account_name": account_name}
+                    )
+                    if create_response.status_code not in [200, 201, 409]:
+                        logger.error(f"❌ Failed to create account: {create_response.status_code}")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not verify account: {e}")
+            
+            # Fetch portfolio balances
+            logger.info(f"📡 Calling Trading Bridge: {trading_bridge_url}/portfolio?account={account_name}")
             response = await client.get(
                 f"{trading_bridge_url}/portfolio",
                 params={"account": account_name}
             )
+            
+            logger.info(f"📥 Trading Bridge response status: {response.status_code}")
+            
+            if response.status_code == 404:
+                logger.warning(f"⚠️ Portfolio not found for account {account_name}. Account may need connectors configured.")
+                return []
+            
             response.raise_for_status()
             portfolio_data = response.json()
+            
+            logger.info(f"📊 Portfolio data received: {portfolio_data}")
             
             # Trading bridge returns balances in format:
             # { "balances": [{"connector": "bitmart", "asset": "USDT", "free": 100.0, "locked": 0.0, "total": 100.0}, ...] }
             balances = portfolio_data.get("balances", [])
+            
+            if not balances:
+                logger.warning(f"⚠️ No balances returned for account {account_name}. Response: {portfolio_data}")
+                # Check if connectors are configured
+                if api_keys:
+                    logger.info(f"💡 Client has {len(api_keys)} API keys configured. Connectors may need to be initialized.")
             
             # Transform to response format
             result = []
@@ -227,8 +269,11 @@ async def get_balances(
                 ))
             logger.info(f"✅ Fetched {len(result)} balances for client {current_user.name} (account: {account_name})")
             return result
+    except httpx.HTTPStatusError as e:
+        logger.error(f"❌ HTTP error getting balances for {account_name}: {e.response.status_code} - {e.response.text}")
+        return []
     except httpx.HTTPError as e:
-        logger.error(f"❌ Failed to get balances from trading bridge for {account_name}: {e}")
+        logger.error(f"❌ HTTP error getting balances for {account_name}: {e}")
         return []
     except Exception as e:
         logger.error(f"❌ Error getting balances for {account_name}: {e}", exc_info=True)

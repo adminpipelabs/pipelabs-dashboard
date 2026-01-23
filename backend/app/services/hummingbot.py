@@ -10,6 +10,7 @@ import logging
 from app.core.config import settings
 from app.core.encryption import decrypt_api_key
 from app.models import ExchangeAPIKey
+import httpx
 
 logger = logging.getLogger(__name__)
 

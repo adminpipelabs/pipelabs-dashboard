@@ -12,7 +12,7 @@ import uuid
 from app.core.database import get_db
 from app.api.auth import get_current_admin, get_current_user
 from app.core.encryption import encrypt_api_key, decrypt_api_key
-from app.models import ExchangeAPIKey, Exchange, Client, User
+from app.models import ExchangeAPIKey, Client, User
 from app.services.hummingbot import hummingbot_service
 
 router = APIRouter()
@@ -43,7 +43,7 @@ class APIKeyUpdate(BaseModel):
 class APIKeyResponse(BaseModel):
     id: str
     client_id: str
-    exchange: Exchange
+    exchange: str  # Exchange name as string (supports all Hummingbot connectors)
     label: Optional[str]
     is_active: bool
     is_testnet: bool
@@ -78,16 +78,8 @@ async def create_api_key(
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     
-    # Convert exchange string to Exchange enum if needed
-    exchange_value = data.exchange
-    if isinstance(exchange_value, str):
-        # Try to find matching Exchange enum value (case-insensitive)
-        exchange_upper = exchange_value.upper().replace('-', '_')
-        try:
-            exchange_value = Exchange[exchange_upper]
-        except KeyError:
-            # If not found, use the string as-is (model accepts string)
-            exchange_value = exchange_value.lower()
+    # Normalize exchange string (lowercase, replace hyphens with underscores for consistency)
+    exchange_value = data.exchange.lower().replace('-', '_')
     
     # Encrypt sensitive data before storing
     encrypted_key = encrypt_api_key(data.api_key)

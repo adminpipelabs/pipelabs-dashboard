@@ -30,7 +30,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { adminAPI } from '../services/api';
 import APIKeysManagement from './APIKeysManagement';
 import BotsModal from '../components/BotsModal';
+import SendOrderModal from '../components/SendOrderModal';
 import AddIcon from '@mui/icons-material/Add';
+import SendIcon from '@mui/icons-material/Send';
 
 export default function ClientDetailView() {
   const { clientId } = useParams();
@@ -42,6 +44,7 @@ export default function ClientDetailView() {
   const [selectedExchange, setSelectedExchange] = useState('all');
   const [activeTab, setActiveTab] = useState(0);
   const [showBotsModal, setShowBotsModal] = useState(false);
+  const [showSendOrderModal, setShowSendOrderModal] = useState(false);
 
   const loadClientData = useCallback(async () => {
     setLoading(true);
@@ -187,6 +190,32 @@ export default function ClientDetailView() {
       <Alert severity="info" sx={{ mb: 3 }}>
         👁️ Viewing as Admin - You're seeing {clientData.client.name}'s dashboard
       </Alert>
+
+      {/* Quick Actions */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Quick Actions
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setShowBotsModal(true)}
+            >
+              Add Bot
+            </Button>
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<SendIcon />}
+              onClick={() => setShowSendOrderModal(true)}
+            >
+              Send Order
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
 
       {/* Client Metrics */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -610,6 +639,18 @@ export default function ClientDetailView() {
         onSuccess={() => {
           loadClientData();
           setShowBotsModal(false);
+        }}
+      />
+
+      {/* Send Order Modal */}
+      <SendOrderModal
+        open={showSendOrderModal}
+        onClose={() => setShowSendOrderModal(false)}
+        clientId={clientId}
+        clientName={clientData?.client?.name || ''}
+        onSuccess={() => {
+          loadClientData();
+          setShowSendOrderModal(false);
         }}
       />
     </Box>

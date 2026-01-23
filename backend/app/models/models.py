@@ -106,4 +106,4 @@ class ClientPair(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    client: Mapped["Client"] = relationship("Client")
+    client: Mapped["Client"] = relationship("Client", back_populates="pairs")

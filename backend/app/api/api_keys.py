@@ -21,7 +21,7 @@ router = APIRouter()
 # Pydantic models
 class APIKeyCreate(BaseModel):
     client_id: str
-    exchange: Exchange
+    exchange: str  # Accept string, convert to Exchange enum
     api_key: str
     api_secret: str
     passphrase: Optional[str] = None
@@ -78,6 +78,17 @@ async def create_api_key(
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     
+    # Convert exchange string to Exchange enum if needed
+    exchange_value = data.exchange
+    if isinstance(exchange_value, str):
+        # Try to find matching Exchange enum value (case-insensitive)
+        exchange_upper = exchange_value.upper().replace('-', '_')
+        try:
+            exchange_value = Exchange[exchange_upper]
+        except KeyError:
+            # If not found, use the string as-is (model accepts string)
+            exchange_value = exchange_value.lower()
+    
     # Encrypt sensitive data before storing
     encrypted_key = encrypt_api_key(data.api_key)
     encrypted_secret = encrypt_api_key(data.api_secret)
@@ -86,7 +97,7 @@ async def create_api_key(
     # Create API key record (store encrypted values in model fields)
     api_key = ExchangeAPIKey(
         client_id=uuid.UUID(data.client_id),
-        exchange=data.exchange,
+        exchange=exchange_value,
         label=data.label,
         api_key=encrypted_key,  # Store encrypted value
         api_secret=encrypted_secret,  # Store encrypted value

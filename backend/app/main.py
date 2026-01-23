@@ -121,6 +121,40 @@ async def lifespan(app: FastAPI):
                     END IF;
                 END $$;
             """),
+            ("exchange_api_keys_fix_column_names", """
+                DO $$ 
+                BEGIN
+                    -- Fix column names: rename _encrypted columns to match model
+                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='exchange_api_keys') THEN
+                        -- Rename api_key_encrypted to api_key if it exists
+                        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                                   WHERE table_name='exchange_api_keys' AND column_name='api_key_encrypted')
+                           AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                         WHERE table_name='exchange_api_keys' AND column_name='api_key') THEN
+                            ALTER TABLE exchange_api_keys RENAME COLUMN api_key_encrypted TO api_key;
+                            RAISE NOTICE 'Renamed api_key_encrypted to api_key';
+                        END IF;
+                        
+                        -- Rename api_secret_encrypted to api_secret if it exists
+                        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                                   WHERE table_name='exchange_api_keys' AND column_name='api_secret_encrypted')
+                           AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                         WHERE table_name='exchange_api_keys' AND column_name='api_secret') THEN
+                            ALTER TABLE exchange_api_keys RENAME COLUMN api_secret_encrypted TO api_secret;
+                            RAISE NOTICE 'Renamed api_secret_encrypted to api_secret';
+                        END IF;
+                        
+                        -- Rename passphrase_encrypted to passphrase if it exists
+                        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                                   WHERE table_name='exchange_api_keys' AND column_name='passphrase_encrypted')
+                           AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                         WHERE table_name='exchange_api_keys' AND column_name='passphrase') THEN
+                            ALTER TABLE exchange_api_keys RENAME COLUMN passphrase_encrypted TO passphrase;
+                            RAISE NOTICE 'Renamed passphrase_encrypted to passphrase';
+                        END IF;
+                    END IF;
+                END $$;
+            """),
             ("client_pairs_table", """
                 CREATE TABLE IF NOT EXISTS client_pairs (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

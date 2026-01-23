@@ -180,6 +180,7 @@ async def create_client_quick(
         
         # Calculate processing time
         processing_time = (datetime.utcnow() - start_time).total_seconds()
+        processing_time_ms = round(processing_time * 1000, 2)
         
         # Comprehensive audit log
         audit_data = {

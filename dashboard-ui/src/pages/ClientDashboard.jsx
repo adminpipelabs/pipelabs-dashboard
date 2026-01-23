@@ -63,7 +63,34 @@ export default function ClientDashboard() {
         return sum + (price * amount);
       }, 0);
       
-      // Group balances by asset/exchange
+      // Group balances by asset (across all exchanges)
+      const assetMap = new Map();
+      balances.forEach(balance => {
+        const asset = balance.asset || 'UNKNOWN';
+        if (!assetMap.has(asset)) {
+          assetMap.set(asset, {
+            symbol: asset,
+            balance: 0,
+            free: 0,
+            locked: 0,
+            usdValue: 0,
+            exchanges: []
+          });
+        }
+        const assetData = assetMap.get(asset);
+        assetData.balance += balance.total || 0;
+        assetData.free += balance.free || 0;
+        assetData.locked += balance.locked || 0;
+        assetData.usdValue += balance.usd_value || 0;
+        if (!assetData.exchanges.includes(balance.exchange)) {
+          assetData.exchanges.push(balance.exchange);
+        }
+      });
+      
+      // Convert to array and sort by USD value (descending)
+      const assets = Array.from(assetMap.values()).sort((a, b) => b.usdValue - a.usdValue);
+      
+      // Group balances by asset/exchange for token performance table
       const tokenMap = new Map();
       balances.forEach(balance => {
         const key = `${balance.asset}_${balance.exchange}`;
@@ -112,6 +139,7 @@ export default function ClientDashboard() {
           '7d': totalPnl,
           '30d': totalPnl
         },
+        assets, // Add assets array for balance display
         volume: {
           total: volume7d,
           '24h': volume24h,

@@ -27,6 +27,73 @@ async def lifespan(app: FastAPI):
             ("password_hash", "ALTER TABLE clients ALTER COLUMN password_hash DROP NOT NULL"),
             ("wallet_address_length", "ALTER TABLE clients ALTER COLUMN wallet_address TYPE VARCHAR(88)"),  # Increase for Solana
             ("wallet_type", "ALTER TABLE clients ADD COLUMN IF NOT EXISTS wallet_type VARCHAR(10) DEFAULT 'EVM'"),
+            ("exchange_api_keys_table", """
+                CREATE TABLE IF NOT EXISTS exchange_api_keys (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+                    exchange VARCHAR(100) NOT NULL,
+                    api_key TEXT NOT NULL,
+                    api_secret TEXT NOT NULL,
+                    passphrase TEXT,
+                    label VARCHAR(255),
+                    is_testnet BOOLEAN DEFAULT FALSE,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                );
+            """),
+            ("exchange_api_keys_add_columns", """
+                DO $$ 
+                BEGIN
+                    -- Add api_key if missing
+                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='exchange_api_keys')
+                       AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='exchange_api_keys' AND column_name='api_key') THEN
+                        ALTER TABLE exchange_api_keys ADD COLUMN api_key TEXT;
+                    END IF;
+                    
+                    -- Add api_secret if missing
+                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='exchange_api_keys')
+                       AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='exchange_api_keys' AND column_name='api_secret') THEN
+                        ALTER TABLE exchange_api_keys ADD COLUMN api_secret TEXT;
+                    END IF;
+                    
+                    -- Add passphrase if missing
+                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='exchange_api_keys')
+                       AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='exchange_api_keys' AND column_name='passphrase') THEN
+                        ALTER TABLE exchange_api_keys ADD COLUMN passphrase TEXT;
+                    END IF;
+                    
+                    -- Add label if missing
+                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='exchange_api_keys')
+                       AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='exchange_api_keys' AND column_name='label') THEN
+                        ALTER TABLE exchange_api_keys ADD COLUMN label VARCHAR(255);
+                    END IF;
+                    
+                    -- Add is_testnet if missing
+                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='exchange_api_keys')
+                       AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='exchange_api_keys' AND column_name='is_testnet') THEN
+                        ALTER TABLE exchange_api_keys ADD COLUMN is_testnet BOOLEAN DEFAULT FALSE;
+                    END IF;
+                    
+                    -- Add is_active if missing
+                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='exchange_api_keys')
+                       AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='exchange_api_keys' AND column_name='is_active') THEN
+                        ALTER TABLE exchange_api_keys ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+                    END IF;
+                    
+                    -- Add created_at if missing
+                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='exchange_api_keys')
+                       AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='exchange_api_keys' AND column_name='created_at') THEN
+                        ALTER TABLE exchange_api_keys ADD COLUMN created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+                    END IF;
+                END $$;
+            """),
         ]
         
         for column_name, sql in migrations:

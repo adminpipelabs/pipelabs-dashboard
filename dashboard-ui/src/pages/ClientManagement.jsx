@@ -129,32 +129,18 @@ export default function ClientManagement() {
     loadClients();
   }, [loadClients]);
 
-  // Handle edit from URL parameter or custom event
+  // Handle edit from URL parameter
   useEffect(() => {
     const editClientId = searchParams.get('edit');
     if (editClientId && clients.length > 0) {
       const clientToEdit = clients.find(c => c.id === editClientId);
-      if (clientToEdit) {
+      if (clientToEdit && !openDialog) {
         handleOpenDialog(clientToEdit);
         // Clear the URL parameter
         setSearchParams({});
       }
     }
-
-    // Listen for custom edit event
-    const handleEditEvent = (event) => {
-      const { clientId } = event.detail;
-      if (clients.length > 0) {
-        const clientToEdit = clients.find(c => c.id === clientId);
-        if (clientToEdit) {
-          handleOpenDialog(clientToEdit);
-        }
-      }
-    };
-
-    window.addEventListener('editClient', handleEditEvent);
-    return () => window.removeEventListener('editClient', handleEditEvent);
-  }, [clients, searchParams, setSearchParams]);
+  }, [clients, searchParams, setSearchParams, openDialog]);
 
   const resetForm = () => {
     setFormData({

@@ -134,32 +134,34 @@ export default function SendOrderModal({ open, onClose, clientId, clientName, on
     setError(null);
 
     try {
-      // Format trading pair (convert SHARP-USDT to SHARP/USDT for Hummingbot)
+      // Format trading pair (ensure correct format)
       const tradingPairFormatted = formData.trading_pair.toUpperCase().replace('-', '/');
       
       const orderData = {
-        connector_name: formData.exchange.toLowerCase(),
+        exchange: formData.exchange.toLowerCase(),
         trading_pair: tradingPairFormatted,
         side: formData.side,
-        amount: formData.quantity,
         order_type: formData.order_type,
-        ...(formData.order_type === 'LIMIT' && formData.price ? { price: formData.price } : {}),
+        quantity: parseFloat(formData.quantity),
+        ...(formData.order_type === 'LIMIT' && formData.price ? { price: parseFloat(formData.price) } : {}),
       };
 
-      // Call Hummingbot API through backend
-      // TODO: Create backend endpoint for sending orders
-      // For now, this is a placeholder
-      console.log('Sending order:', orderData);
+      // Call backend endpoint to send order via Hummingbot/trading-bridge
+      const result = await adminAPI.sendOrder(clientId, orderData);
       
-      // Placeholder - replace with actual API call when backend endpoint is ready
-      alert('Order functionality will be connected to Hummingbot API. Order data: ' + JSON.stringify(orderData));
-      
-      if (onSuccess) {
-        onSuccess();
+      if (result.success) {
+        // Show success message
+        alert(`Order placed successfully!\nOrder ID: ${result.order_id || 'N/A'}\nTrading Pair: ${result.trading_pair}\nSide: ${result.side}\nQuantity: ${result.quantity}`);
+        
+        if (onSuccess) {
+          onSuccess();
+        }
+        
+        onClose();
+        resetForm();
+      } else {
+        setError(result.message || 'Failed to place order. Please try again.');
       }
-      
-      onClose();
-      resetForm();
     } catch (err) {
       console.error('Failed to send order:', err);
       setError(err.message || 'Failed to send order. Please try again.');

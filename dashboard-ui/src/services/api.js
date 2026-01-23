@@ -116,6 +116,13 @@ export const adminAPI = {
       method: 'DELETE',
     });
   },
+
+  async sendOrder(clientId, orderData) {
+    return apiCall(`/api/admin/clients/${clientId}/orders`, {
+      method: 'POST',
+      body: JSON.stringify(orderData),
+    });
+  },
   async getDashboard() {
     if (USE_MOCK) {
       await new Promise(resolve => setTimeout(resolve, 800));

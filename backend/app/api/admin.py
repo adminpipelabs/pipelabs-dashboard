@@ -8,12 +8,15 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
 import uuid
+import logging
 
 from app.core.database import get_db
 from app.models import Client, ExchangeAPIKey, ClientStatus
 from app.api.auth import get_current_admin
 from app.models.user import User
 from typing import Annotated
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -532,3 +535,102 @@ async def delete_client_api_key(
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Pydantic model for order creation
+class OrderCreate(BaseModel):
+    exchange: str
+    trading_pair: str
+    side: str  # "BUY" or "SELL"
+    order_type: str  # "MARKET" or "LIMIT"
+    quantity: float
+    price: Optional[float] = None  # Required for LIMIT orders
+
+
+# POST /admin/clients/{client_id}/orders
+@router.post("/clients/{client_id}/orders")
+async def send_order(
+    client_id: str,
+    order_data: OrderCreate,
+    current_admin: Annotated[User, Depends(get_current_admin)],
+    db: AsyncSession = Depends(get_db)
+):
+    """Send a trading order for a client via Hummingbot/trading-bridge"""
+    try:
+        # Get client
+        result = await db.execute(
+            select(Client).where(Client.id == uuid.UUID(client_id))
+        )
+        client = result.scalar_one_or_none()
+        
+        if not client:
+            raise HTTPException(status_code=404, detail="Client not found")
+        
+        # Get active API key for the exchange
+        api_key_result = await db.execute(
+            select(ExchangeAPIKey).where(
+                ExchangeAPIKey.client_id == uuid.UUID(client_id),
+                ExchangeAPIKey.exchange == order_data.exchange,
+                ExchangeAPIKey.is_active == True
+            )
+        )
+        api_key = api_key_result.scalar_one_or_none()
+        
+        if not api_key:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No active API key found for exchange {order_data.exchange}"
+            )
+        
+        # Validate order data
+        if order_data.order_type == "LIMIT" and not order_data.price:
+            raise HTTPException(
+                status_code=400,
+                detail="Price is required for LIMIT orders"
+            )
+        
+        # Get account name for client
+        account_name = f"client_{client.name.lower().replace(' ', '_')}"
+        
+        # Import HummingbotService
+        from app.services.hummingbot import hummingbot_service
+        
+        # Format trading pair (ensure it's in correct format)
+        trading_pair = order_data.trading_pair.upper().replace('-', '/')
+        
+        # Place order via Hummingbot
+        if order_data.order_type == "MARKET":
+            # For market orders, use a different endpoint or get current price
+            # For now, we'll use limit order with market price approximation
+            # TODO: Implement proper market order endpoint
+            raise HTTPException(
+                status_code=501,
+                detail="Market orders not yet implemented. Please use LIMIT orders."
+            )
+        else:
+            # LIMIT order
+            result = await hummingbot_service.place_limit_order(
+                account_name=account_name,
+                connector=order_data.exchange.lower(),
+                trading_pair=trading_pair,
+                side=order_data.side.lower(),
+                price=float(order_data.price),
+                amount=float(order_data.quantity)
+            )
+        
+        return {
+            "success": True,
+            "message": "Order placed successfully",
+            "order_id": result.get("order_id"),
+            "account_name": account_name,
+            "trading_pair": trading_pair,
+            "side": order_data.side,
+            "quantity": order_data.quantity,
+            "price": order_data.price if order_data.order_type == "LIMIT" else None
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to place order: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to place order: {str(e)}")

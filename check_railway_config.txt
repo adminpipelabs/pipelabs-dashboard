@@ -1,0 +1,17 @@
+RAILWAY CONFIGURATION CHECKLIST:
+
+Backend Service:
+- Root Directory: backend
+- Branch: main  
+- Repository: adminpipelabs/pipelabs-dashboard
+- Latest Commit Should Be: d56fa22
+
+Frontend Service:
+- Root Directory: dashboard-ui
+- Branch: main
+- Repository: adminpipelabs/pipelabs-dashboard  
+- Latest Commit Should Be: d56fa22
+
+To verify deployment:
+curl https://your-backend-url/health
+Should return version: 0.1.4

@@ -199,10 +199,10 @@ async def get_api_key_detail(
     if not api_key:
         raise HTTPException(status_code=404, detail="API key not found")
     
-    # Decrypt the keys
-    decrypted_key = decrypt_api_key(api_key.api_key_encrypted)
-    decrypted_secret = decrypt_api_key(api_key.api_secret_encrypted)
-    decrypted_passphrase = decrypt_api_key(api_key.passphrase_encrypted) if api_key.passphrase_encrypted else None
+    # Decrypt the keys (use correct field names)
+    decrypted_key = decrypt_api_key(api_key.api_key)
+    decrypted_secret = decrypt_api_key(api_key.api_secret)
+    decrypted_passphrase = decrypt_api_key(api_key.passphrase) if api_key.passphrase else None
     
     api_key_preview = f"{decrypted_key[:6]}...{decrypted_key[-4:]}" if len(decrypted_key) > 10 else "***"
     
@@ -243,13 +243,13 @@ async def update_api_key(
     if not api_key:
         raise HTTPException(status_code=404, detail="API key not found")
     
-    # Update fields
+    # Update fields (use correct field names)
     if data.api_key is not None:
-        api_key.api_key_encrypted = encrypt_api_key(data.api_key)
+        api_key.api_key = encrypt_api_key(data.api_key)
     if data.api_secret is not None:
-        api_key.api_secret_encrypted = encrypt_api_key(data.api_secret)
+        api_key.api_secret = encrypt_api_key(data.api_secret)
     if data.passphrase is not None:
-        api_key.passphrase_encrypted = encrypt_api_key(data.passphrase)
+        api_key.passphrase = encrypt_api_key(data.passphrase)
     if data.label is not None:
         api_key.label = data.label
     if data.is_active is not None:
@@ -264,8 +264,8 @@ async def update_api_key(
     await db.commit()
     await db.refresh(api_key)
     
-    # Create preview
-    decrypted_key = decrypt_api_key(api_key.api_key_encrypted)
+    # Create preview (use correct field names)
+    decrypted_key = decrypt_api_key(api_key.api_key)
     api_key_preview = f"{decrypted_key[:6]}...{decrypted_key[-4:]}" if len(decrypted_key) > 10 else "***"
     
     return APIKeyResponse(
@@ -276,11 +276,11 @@ async def update_api_key(
         is_active=api_key.is_active,
         is_testnet=api_key.is_testnet,
         created_at=api_key.created_at,
-        updated_at=api_key.updated_at,
-        last_verified_at=api_key.last_verified_at,
-        notes=api_key.notes,
+        updated_at=api_key.created_at,  # Model doesn't have updated_at field
+        last_verified_at=None,  # Not tracked yet
+        notes=None,  # Not in model yet
         api_key_preview=api_key_preview,
-        has_passphrase=bool(api_key.passphrase_encrypted),
+        has_passphrase=bool(api_key.passphrase),
     )
 
 

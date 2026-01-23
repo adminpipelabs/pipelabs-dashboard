@@ -224,8 +224,36 @@ async def get_clients(db: AsyncSession = Depends(get_db)):
                 "exchanges": connectors,
                 "connectors": connectors,  # Add connectors for UI compatibility
                 "tokens": tokens,  # Add tokens array
+                "pairs": [],  # Will be populated from ClientPair if needed
                 "created_at": client.created_at.isoformat() if client.created_at else None
             })
+        
+        # Load pairs for each client
+        from app.models import ClientPair
+        for i, client in enumerate(clients):
+            pairs_result = await db.execute(
+                select(ClientPair).where(ClientPair.client_id == client.id)
+            )
+            pairs = pairs_result.scalars().all()
+            
+            # Update tokens from pairs
+            pair_tokens = list(set([p.trading_pair for p in pairs]))
+            if pair_tokens:
+                result_list[i]["tokens"] = pair_tokens
+            
+            # Add pairs data
+            result_list[i]["pairs"] = [
+                {
+                    "id": str(p.id),
+                    "exchange": p.exchange,
+                    "trading_pair": p.trading_pair,
+                    "bot_type": p.bot_type.value if hasattr(p.bot_type, 'value') else str(p.bot_type),
+                    "status": p.status.value if hasattr(p.status, 'value') else str(p.status),
+                    "spread_target": float(p.spread_target) if p.spread_target else None,
+                    "volume_target_daily": float(p.volume_target_daily) if p.volume_target_daily else None,
+                }
+                for p in pairs
+            ]
         
         return result_list
     except Exception as e:

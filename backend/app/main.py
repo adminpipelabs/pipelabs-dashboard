@@ -221,7 +221,7 @@ app.include_router(clients_router, prefix="/api/clients", tags=["Clients"])
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok"}
+    return {"status": "ok", "version": "0.1.2"}
 
 
 @app.get("/")

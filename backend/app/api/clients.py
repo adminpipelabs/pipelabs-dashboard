@@ -327,39 +327,68 @@ async def get_volume_stats(
     days: int = Query(7, ge=1, le=90),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get volume statistics from trade history"""
+    """Get volume statistics from trade history via Trading Bridge"""
+    import httpx
+    import logging
+    logger = logging.getLogger(__name__)
+    
     account_name = f"client_{current_user.name.lower().replace(' ', '_')}"
+    trading_bridge_url = getattr(settings, 'TRADING_BRIDGE_URL', 'https://trading-bridge-production.up.railway.app')
     
     try:
-        trades = await hummingbot_service.get_trade_history(
-            account_name=account_name,
-            limit=10000  # Get enough to calculate volume
-        )
+        # Get trade history from Trading Bridge
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            history_response = await client.get(
+                f"{trading_bridge_url}/history",
+                params={"account": account_name}
+            )
+            
+            if history_response.status_code == 404:
+                logger.warning(f"⚠️ Trade history not found for account {account_name}")
+                return {
+                    "total_volume": 0.0,
+                    "period_days": days,
+                    "pair_volumes": {},
+                    "trade_count": 0
+                }
+            
+            history_response.raise_for_status()
+            trades_data = history_response.json()
+            trades = trades_data.get("trades", [])
         
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         total_volume = 0.0
         pair_volumes = {}
+        filtered_trades = []
         
         for trade in trades:
-            trade_time = datetime.fromisoformat(trade.get("timestamp", "").replace("Z", "+00:00"))
-            if trade_time >= cutoff_date:
-                pair = trade.get("trading_pair", "")
-                price = float(trade.get("price", 0))
-                amount = float(trade.get("amount", 0))
-                volume = price * amount
-                
-                total_volume += volume
-                if pair not in pair_volumes:
-                    pair_volumes[pair] = 0.0
-                pair_volumes[pair] += volume
+            try:
+                trade_time_str = trade.get("timestamp") or trade.get("time")
+                if trade_time_str:
+                    trade_time = datetime.fromisoformat(trade_time_str.replace("Z", "+00:00"))
+                    if trade_time >= cutoff_date:
+                        pair = trade.get("trading_pair", "") or trade.get("pair", "")
+                        price = float(trade.get("price", 0))
+                        amount = float(trade.get("amount", 0))
+                        volume = price * amount
+                        
+                        total_volume += volume
+                        if pair not in pair_volumes:
+                            pair_volumes[pair] = 0.0
+                        pair_volumes[pair] += volume
+                        filtered_trades.append(trade)
+            except Exception as e:
+                logger.warning(f"⚠️ Error processing trade: {e}")
+                continue
         
         return {
             "total_volume": total_volume,
             "period_days": days,
             "pair_volumes": pair_volumes,
-            "trade_count": len([t for t in trades if datetime.fromisoformat(t.get("timestamp", "").replace("Z", "+00:00")) >= cutoff_date])
+            "trade_count": len(filtered_trades)
         }
     except Exception as e:
+        logger.error(f"❌ Error getting volume stats for {account_name}: {e}", exc_info=True)
         return {
             "total_volume": 0.0,
             "period_days": days,

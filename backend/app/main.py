@@ -126,31 +126,58 @@ async def lifespan(app: FastAPI):
                 BEGIN
                     -- Fix column names: rename _encrypted columns to match model
                     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='exchange_api_keys') THEN
-                        -- Rename api_key_encrypted to api_key if it exists
+                        -- Rename api_key_encrypted to api_key if it exists (even if api_key already exists, drop old one)
                         IF EXISTS (SELECT 1 FROM information_schema.columns 
-                                   WHERE table_name='exchange_api_keys' AND column_name='api_key_encrypted')
-                           AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                                         WHERE table_name='exchange_api_keys' AND column_name='api_key') THEN
-                            ALTER TABLE exchange_api_keys RENAME COLUMN api_key_encrypted TO api_key;
-                            RAISE NOTICE 'Renamed api_key_encrypted to api_key';
+                                   WHERE table_name='exchange_api_keys' AND column_name='api_key_encrypted') THEN
+                            IF EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='exchange_api_keys' AND column_name='api_key') THEN
+                                -- Both exist, drop the _encrypted one
+                                ALTER TABLE exchange_api_keys DROP COLUMN api_key_encrypted;
+                                RAISE NOTICE 'Dropped duplicate api_key_encrypted column';
+                            ELSE
+                                -- Only _encrypted exists, rename it
+                                ALTER TABLE exchange_api_keys RENAME COLUMN api_key_encrypted TO api_key;
+                                RAISE NOTICE 'Renamed api_key_encrypted to api_key';
+                            END IF;
                         END IF;
                         
                         -- Rename api_secret_encrypted to api_secret if it exists
                         IF EXISTS (SELECT 1 FROM information_schema.columns 
-                                   WHERE table_name='exchange_api_keys' AND column_name='api_secret_encrypted')
-                           AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                                         WHERE table_name='exchange_api_keys' AND column_name='api_secret') THEN
-                            ALTER TABLE exchange_api_keys RENAME COLUMN api_secret_encrypted TO api_secret;
-                            RAISE NOTICE 'Renamed api_secret_encrypted to api_secret';
+                                   WHERE table_name='exchange_api_keys' AND column_name='api_secret_encrypted') THEN
+                            IF EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='exchange_api_keys' AND column_name='api_secret') THEN
+                                ALTER TABLE exchange_api_keys DROP COLUMN api_secret_encrypted;
+                                RAISE NOTICE 'Dropped duplicate api_secret_encrypted column';
+                            ELSE
+                                ALTER TABLE exchange_api_keys RENAME COLUMN api_secret_encrypted TO api_secret;
+                                RAISE NOTICE 'Renamed api_secret_encrypted to api_secret';
+                            END IF;
                         END IF;
                         
                         -- Rename passphrase_encrypted to passphrase if it exists
                         IF EXISTS (SELECT 1 FROM information_schema.columns 
-                                   WHERE table_name='exchange_api_keys' AND column_name='passphrase_encrypted')
-                           AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                                         WHERE table_name='exchange_api_keys' AND column_name='passphrase') THEN
-                            ALTER TABLE exchange_api_keys RENAME COLUMN passphrase_encrypted TO passphrase;
-                            RAISE NOTICE 'Renamed passphrase_encrypted to passphrase';
+                                   WHERE table_name='exchange_api_keys' AND column_name='passphrase_encrypted') THEN
+                            IF EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='exchange_api_keys' AND column_name='passphrase') THEN
+                                ALTER TABLE exchange_api_keys DROP COLUMN passphrase_encrypted;
+                                RAISE NOTICE 'Dropped duplicate passphrase_encrypted column';
+                            ELSE
+                                ALTER TABLE exchange_api_keys RENAME COLUMN passphrase_encrypted TO passphrase;
+                                RAISE NOTICE 'Renamed passphrase_encrypted to passphrase';
+                            END IF;
+                        END IF;
+                        
+                        -- Ensure api_key and api_secret are NOT NULL
+                        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                                   WHERE table_name='exchange_api_keys' AND column_name='api_key' AND is_nullable='YES') THEN
+                            ALTER TABLE exchange_api_keys ALTER COLUMN api_key SET NOT NULL;
+                            RAISE NOTICE 'Set api_key to NOT NULL';
+                        END IF;
+                        
+                        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                                   WHERE table_name='exchange_api_keys' AND column_name='api_secret' AND is_nullable='YES') THEN
+                            ALTER TABLE exchange_api_keys ALTER COLUMN api_secret SET NOT NULL;
+                            RAISE NOTICE 'Set api_secret to NOT NULL';
                         END IF;
                     END IF;
                 END $$;

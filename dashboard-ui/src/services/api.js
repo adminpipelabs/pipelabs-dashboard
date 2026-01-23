@@ -3,7 +3,7 @@
  * Centralized API calls to the FastAPI backend
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://pipelabs-dashboard-production.up.railway.appp';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://pipelabs-dashboard-production.up.railway.app';
 // Mock mode toggle (set to false when backend is connected)
 const USE_MOCK = false;
 

@@ -468,6 +468,7 @@ async def get_client_api_keys(client_id: str, db: AsyncSession = Depends(get_db)
 async def add_client_api_key(
     client_id: str,
     key_data: APIKeyCreate,
+    current_admin: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Add an API key for a client"""

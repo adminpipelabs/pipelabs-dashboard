@@ -150,7 +150,7 @@ async def get_client_api_keys(
     response = []
     for key in api_keys:
         # Decrypt just to create preview
-        decrypted_key = decrypt_api_key(key.api_key_encrypted)
+        decrypted_key = decrypt_api_key(key.api_key)
         api_key_preview = f"{decrypted_key[:6]}...{decrypted_key[-4:]}" if len(decrypted_key) > 10 else "***"
         
         response.append(APIKeyResponse(

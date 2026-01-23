@@ -96,6 +96,31 @@ async def lifespan(app: FastAPI):
                     END IF;
                 END $$;
             """),
+            ("exchange_api_keys_fix_exchange_type", """
+                DO $$ 
+                BEGIN
+                    -- Fix exchange column type: convert from enum to VARCHAR if it's an enum
+                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='exchange_api_keys')
+                       AND EXISTS (SELECT 1 FROM information_schema.columns 
+                                   WHERE table_name='exchange_api_keys' AND column_name='exchange') THEN
+                        -- Check if column is using a custom type (enum)
+                        IF EXISTS (
+                            SELECT 1 FROM information_schema.columns c
+                            JOIN pg_type t ON c.udt_name = t.typname
+                            WHERE c.table_name = 'exchange_api_keys' 
+                            AND c.column_name = 'exchange'
+                            AND t.typtype = 'e'  -- 'e' = enum type
+                        ) THEN
+                            -- Convert enum to VARCHAR by casting
+                            ALTER TABLE exchange_api_keys 
+                            ALTER COLUMN exchange TYPE VARCHAR(100) 
+                            USING exchange::text;
+                            
+                            RAISE NOTICE 'Converted exchange column from enum to VARCHAR(100)';
+                        END IF;
+                    END IF;
+                END $$;
+            """),
             ("client_pairs_table", """
                 CREATE TABLE IF NOT EXISTS client_pairs (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

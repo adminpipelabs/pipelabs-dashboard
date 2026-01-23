@@ -1,4 +1,4 @@
-// Build trigger v2 - Force rebuild for API Keys Management
+// Build trigger v3 - Force Railway frontend rebuild - All modals and components updated
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { Portfolio, Orders, Bots, Agent } from './pages';

@@ -24,7 +24,7 @@ import {
   AccountBalanceWallet as WalletIcon,
   ShowChart as ChartIcon,
 } from '@mui/icons-material';
-import api from '../services/api';
+import { clientAPI } from '../services/api';
 
 export default function ClientDashboard() {
   const [loading, setLoading] = useState(true);

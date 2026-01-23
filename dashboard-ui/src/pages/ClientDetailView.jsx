@@ -35,6 +35,7 @@ import PairsModal from '../components/PairsModal';
 import AddIcon from '@mui/icons-material/Add';
 import SendIcon from '@mui/icons-material/Send';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import EditIcon from '@mui/icons-material/Edit';
 
 export default function ClientDetailView() {
   const { clientId } = useParams();
@@ -235,6 +236,13 @@ export default function ClientDetailView() {
               onClick={() => setShowPairsModal(true)}
             >
               Manage Trading Pairs
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<EditIcon />}
+              onClick={() => navigate(`/admin/clients?edit=${clientId}`)}
+            >
+              Edit Client
             </Button>
           </Box>
         </CardContent>

@@ -45,6 +45,7 @@ import TelegramIcon from '@mui/icons-material/Telegram';
 import LanguageIcon from '@mui/icons-material/Language';
 import EmailIcon from '@mui/icons-material/Email';
 import { adminAPI } from '../services/api';
+import { useSearchParams } from 'react-router-dom';
 
 // Supported exchanges
 const EXCHANGES = [
@@ -63,6 +64,7 @@ const EXCHANGES = [
 const TIERS = ['Basic', 'Standard', 'Premium', 'Enterprise'];
 
 export default function ClientManagement() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -126,6 +128,33 @@ export default function ClientManagement() {
   useEffect(() => {
     loadClients();
   }, [loadClients]);
+
+  // Handle edit from URL parameter or custom event
+  useEffect(() => {
+    const editClientId = searchParams.get('edit');
+    if (editClientId && clients.length > 0) {
+      const clientToEdit = clients.find(c => c.id === editClientId);
+      if (clientToEdit) {
+        handleOpenDialog(clientToEdit);
+        // Clear the URL parameter
+        setSearchParams({});
+      }
+    }
+
+    // Listen for custom edit event
+    const handleEditEvent = (event) => {
+      const { clientId } = event.detail;
+      if (clients.length > 0) {
+        const clientToEdit = clients.find(c => c.id === clientId);
+        if (clientToEdit) {
+          handleOpenDialog(clientToEdit);
+        }
+      }
+    };
+
+    window.addEventListener('editClient', handleEditEvent);
+    return () => window.removeEventListener('editClient', handleEditEvent);
+  }, [clients, searchParams, setSearchParams]);
 
   const resetForm = () => {
     setFormData({

@@ -7,7 +7,7 @@ from sqlalchemy import select
 import anthropic
 
 from app.core.config import settings
-from app.models import Client, ClientExchange, ClientPair
+from app.models import Client, ExchangeAPIKey, ClientPair
 
 
 # System prompt template
@@ -60,8 +60,9 @@ class ScopedAgentService:
         if not client:
             raise ValueError(f"Client {client_id} not found")
         
+        # Get exchanges from ExchangeAPIKey (API keys)
         exchanges_result = await db.execute(
-            select(ClientExchange).where(ClientExchange.client_id == client_id)
+            select(ExchangeAPIKey).where(ExchangeAPIKey.client_id == client_id).where(ExchangeAPIKey.is_active == True)
         )
         exchanges = exchanges_result.scalars().all()
         
@@ -70,8 +71,10 @@ class ScopedAgentService:
         )
         pairs = pairs_result.scalars().all()
         
-        allowed_accounts = list(set(e.hummingbot_account for e in exchanges))
-        allowed_exchanges = list(set(e.exchange for e in exchanges))
+        # Generate account names from client name and exchange names
+        client_name_normalized = client.name.lower().replace(' ', '_')
+        allowed_accounts = [f"client_{client_name_normalized}"]
+        allowed_exchanges = list(set(e.exchange.value if hasattr(e.exchange, 'value') else str(e.exchange) for e in exchanges))
         allowed_pairs = list(set(p.trading_pair for p in pairs))
         
         client_settings = client.settings or {}

@@ -31,8 +31,10 @@ import { adminAPI } from '../services/api';
 import APIKeysManagement from './APIKeysManagement';
 import BotsModal from '../components/BotsModal';
 import SendOrderModal from '../components/SendOrderModal';
+import PairsModal from '../components/PairsModal';
 import AddIcon from '@mui/icons-material/Add';
 import SendIcon from '@mui/icons-material/Send';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 
 export default function ClientDetailView() {
   const { clientId } = useParams();
@@ -45,6 +47,7 @@ export default function ClientDetailView() {
   const [activeTab, setActiveTab] = useState(0);
   const [showBotsModal, setShowBotsModal] = useState(false);
   const [showSendOrderModal, setShowSendOrderModal] = useState(false);
+  const [showPairsModal, setShowPairsModal] = useState(false);
 
   const loadClientData = useCallback(async () => {
     setLoading(true);
@@ -212,6 +215,13 @@ export default function ClientDetailView() {
               onClick={() => setShowSendOrderModal(true)}
             >
               Send Order
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<SwapHorizIcon />}
+              onClick={() => setShowPairsModal(true)}
+            >
+              Manage Trading Pairs
             </Button>
           </Box>
         </CardContent>
@@ -651,6 +661,17 @@ export default function ClientDetailView() {
         onSuccess={() => {
           loadClientData();
           setShowSendOrderModal(false);
+        }}
+      />
+
+      {/* Trading Pairs Modal */}
+      <PairsModal
+        open={showPairsModal}
+        onClose={() => setShowPairsModal(false)}
+        clientId={clientId}
+        clientName={clientData?.client?.name || ''}
+        onSuccess={() => {
+          loadClientData();
         }}
       />
     </Box>

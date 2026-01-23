@@ -177,8 +177,34 @@ async def get_clients(db: AsyncSession = Depends(get_db)):
         result = await db.execute(select(Client).order_by(Client.created_at.desc()))
         clients = result.scalars().all()
         
-        return [
-            {
+        # Load API keys for each client
+        from app.models import ExchangeAPIKey
+        
+        result_list = []
+        for client in clients:
+            # Get API keys for this client
+            api_keys_result = await db.execute(
+                select(ExchangeAPIKey).where(ExchangeAPIKey.client_id == client.id)
+            )
+            api_keys = api_keys_result.scalars().all()
+            
+            # Transform API keys to connectors format (only active ones)
+            connectors = [
+                {
+                    "id": str(key.id),
+                    "exchange": key.exchange.value if hasattr(key.exchange, 'value') else str(key.exchange),
+                    "label": key.label or f"{key.exchange.value if hasattr(key.exchange, 'value') else str(key.exchange)} Account",
+                    "is_testnet": key.is_testnet,
+                    "is_active": key.is_active
+                }
+                for key in api_keys if key.is_active
+            ]
+            
+            # Get trading pairs from settings
+            trading_pair = client.settings.get("tradingPair") if client.settings else None
+            tokens = [trading_pair] if trading_pair else []
+            
+            result_list.append({
                 "id": str(client.id),
                 "name": client.name,
                 "email": client.email,
@@ -188,18 +214,20 @@ async def get_clients(db: AsyncSession = Depends(get_db)):
                 "tier": client.settings.get("tier", "Standard") if client.settings else "Standard",
                 "tokenName": client.settings.get("tokenName") if client.settings else None,
                 "tokenSymbol": client.settings.get("tokenSymbol") if client.settings else None,
-                "tradingPair": client.settings.get("tradingPair") if client.settings else None,
+                "tradingPair": trading_pair,
                 "contactPerson": client.settings.get("contactPerson") if client.settings else None,
                 "telegramId": client.settings.get("telegramId") if client.settings else None,
                 "website": client.settings.get("website") if client.settings else None,
                 "settings": client.settings or {},
                 "volume": 0,
                 "revenue": 0,
-                "exchanges": [],
+                "exchanges": connectors,
+                "connectors": connectors,  # Add connectors for UI compatibility
+                "tokens": tokens,  # Add tokens array
                 "created_at": client.created_at.isoformat() if client.created_at else None
-            }
-            for client in clients
-        ]
+            })
+        
+        return result_list
     except Exception as e:
         print(f"Error fetching clients: {e}")
         raise HTTPException(status_code=500, detail=str(e))

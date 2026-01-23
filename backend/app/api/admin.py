@@ -183,6 +183,7 @@ async def get_clients(db: AsyncSession = Depends(get_db)):
                 "name": client.name,
                 "email": client.email,
                 "wallet_address": client.wallet_address,
+                "wallet_type": client.wallet_type or "EVM",
                 "status": client.status.value if hasattr(client.status, 'value') else str(client.status) if client.status else "active",
                 "tier": client.settings.get("tier", "Standard") if client.settings else "Standard",
                 "tokenName": client.settings.get("tokenName") if client.settings else None,

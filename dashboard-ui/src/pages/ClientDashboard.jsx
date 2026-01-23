@@ -39,11 +39,92 @@ export default function ClientDashboard() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      // TODO: Replace with real API endpoint
-      const response = await api.get(`/clients/dashboard?range=${timeRange}`);
-      setDashboardData(response.data);
+      setError('');
+      
+      // Fetch real data from API
+      const [portfolio, balances, trades] = await Promise.all([
+        clientAPI.getPortfolio().catch(() => ({ total_pnl: 0, volume_24h: 0, active_bots: 0, total_bots: 0 })),
+        clientAPI.getBalances().catch(() => []),
+        clientAPI.getTrades(null, 100, timeRange === '24h' ? 1 : timeRange === '7d' ? 7 : 30).catch(() => [])
+      ]);
+      
+      // Calculate total portfolio value from balances
+      const totalValue = balances.reduce((sum, b) => sum + (b.usd_value || 0), 0);
+      
+      // Calculate P&L from portfolio
+      const totalPnl = portfolio.total_pnl || 0;
+      const pnlPercent = totalValue > 0 ? (totalPnl / totalValue) * 100 : 0;
+      
+      // Calculate volume from trades
+      const volume24h = portfolio.volume_24h || 0;
+      const volume7d = trades.reduce((sum, t) => {
+        const price = parseFloat(t.price || 0);
+        const amount = parseFloat(t.amount || 0);
+        return sum + (price * amount);
+      }, 0);
+      
+      // Group balances by asset/exchange
+      const tokenMap = new Map();
+      balances.forEach(balance => {
+        const key = `${balance.asset}_${balance.exchange}`;
+        if (!tokenMap.has(key)) {
+          tokenMap.set(key, {
+            symbol: balance.asset,
+            pair: `${balance.asset}/USDT`,
+            exchange: balance.exchange,
+            balance: 0,
+            value: 0,
+            pnl: 0,
+            pnlPercent: 0,
+            volume24h: 0,
+            status: 'active'
+          });
+        }
+        const token = tokenMap.get(key);
+        token.balance += balance.total || 0;
+        token.value += balance.usd_value || 0;
+      });
+      
+      const tokens = Array.from(tokenMap.values());
+      
+      // Transform trades to orders format
+      const recentOrders = trades.slice(0, 10).map((trade, idx) => ({
+        id: trade.order_id || idx + 1,
+        time: trade.timestamp || trade.time || new Date().toISOString(),
+        pair: trade.trading_pair || 'N/A',
+        side: trade.side || 'buy',
+        price: parseFloat(trade.price || 0),
+        amount: parseFloat(trade.amount || 0),
+        total: parseFloat(trade.price || 0) * parseFloat(trade.amount || 0),
+        status: trade.status || 'filled'
+      }));
+      
+      setDashboardData({
+        portfolio: {
+          totalValue,
+          change24h: 0, // TODO: Calculate from historical data
+          changePercent24h: 0
+        },
+        pnl: {
+          total: totalPnl,
+          percent: pnlPercent,
+          '24h': 0, // TODO: Calculate from trades
+          '7d': totalPnl,
+          '30d': totalPnl
+        },
+        volume: {
+          total: volume7d,
+          '24h': volume24h,
+          '7d': volume7d,
+          '30d': volume7d
+        },
+        tokens,
+        recentOrders
+      });
     } catch (err) {
-      // Use mock data for now
+      console.error('Failed to load dashboard data:', err);
+      setError('Failed to load dashboard data. Please try again.');
+      // Fallback to mock data if API fails
       setDashboardData(getMockData());
     } finally {
       setLoading(false);

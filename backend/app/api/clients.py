@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 from app.core.database import get_db
 from app.core.config import settings
-from app.api.auth import get_current_user
+from app.api.auth import get_current_client
 from app.models import Client, ClientPair, ExchangeAPIKey
 from app.services.hummingbot import hummingbot_service
 from sqlalchemy import select
@@ -47,7 +47,7 @@ class PnLHistory(BaseModel):
 # Routes
 @router.get("/portfolio", response_model=PortfolioOverview)
 async def get_portfolio(
-    current_user: Annotated[Client, Depends(get_current_user)],
+    current_user: Annotated[Client, Depends(get_current_client)],
     db: AsyncSession = Depends(get_db)
 ):
     """Get client's portfolio overview"""
@@ -92,7 +92,7 @@ async def get_portfolio(
 
 @router.get("/portfolio/pairs", response_model=List[PairSummary])
 async def get_pairs(
-    current_user: Annotated[Client, Depends(get_current_user)],
+    current_user: Annotated[Client, Depends(get_current_client)],
     db: AsyncSession = Depends(get_db)
 ):
     """Get client's trading pairs"""
@@ -117,7 +117,7 @@ async def get_pairs(
 
 @router.get("/portfolio/history", response_model=List[PnLHistory])
 async def get_pnl_history(
-    current_user: Annotated[Client, Depends(get_current_user)],
+    current_user: Annotated[Client, Depends(get_current_client)],
     days: int = 7,
     db: AsyncSession = Depends(get_db)
 ):
@@ -186,7 +186,7 @@ class TradeHistoryItem(BaseModel):
 
 @router.get("/balances", response_model=List[BalanceResponse])
 async def get_balances(
-    current_user: Annotated[Client, Depends(get_current_user)],
+    current_user: Annotated[Client, Depends(get_current_client)],
     db: AsyncSession = Depends(get_db)
 ):
     """Get real-time balances from Trading Bridge for all client exchanges"""
@@ -282,7 +282,7 @@ async def get_balances(
 
 @router.get("/trades", response_model=List[TradeHistoryItem])
 async def get_trade_history(
-    current_user: Annotated[Client, Depends(get_current_user)],
+    current_user: Annotated[Client, Depends(get_current_client)],
     trading_pair: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=1000),
     days: int = Query(7, ge=1, le=90),
@@ -348,7 +348,7 @@ async def get_trade_history(
 
 @router.get("/volume", response_model=dict)
 async def get_volume_stats(
-    current_user: Annotated[Client, Depends(get_current_user)],
+    current_user: Annotated[Client, Depends(get_current_client)],
     days: int = Query(7, ge=1, le=90),
     db: AsyncSession = Depends(get_db)
 ):
@@ -424,7 +424,7 @@ async def get_volume_stats(
 
 @router.get("/report")
 async def generate_report(
-    current_user: Annotated[Client, Depends(get_current_user)],
+    current_user: Annotated[Client, Depends(get_current_client)],
     format: str = Query("json", regex="^(json|pdf|csv)$"),
     days: int = Query(30, ge=1, le=365),
     db: AsyncSession = Depends(get_db)

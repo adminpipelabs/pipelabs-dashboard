@@ -145,6 +145,50 @@ async def get_current_admin(current_user: User = Depends(get_current_user)) -> U
         )
     return current_user
 
+async def get_current_client(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get current authenticated client from JWT token (user must be a client)"""
+    from app.models import Client
+    
+    if current_user.role != "client":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Client access required"
+        )
+    
+    # Find the Client record by wallet_address or email
+    if current_user.wallet_address:
+        result = await db.execute(
+            select(Client).where(Client.wallet_address == current_user.wallet_address)
+        )
+        client = result.scalar_one_or_none()
+    elif current_user.email:
+        result = await db.execute(
+            select(Client).where(Client.email == current_user.email)
+        )
+        client = result.scalar_one_or_none()
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client record not found"
+        )
+    
+    if client is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client record not found"
+        )
+    
+    if client.status.value != "active":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Client account is not active"
+        )
+    
+    return client
+
 # ==================== Auth Routes ====================
 
 @router.post("/wallet/login", response_model=TokenResponse)

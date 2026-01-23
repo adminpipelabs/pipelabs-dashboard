@@ -19,17 +19,22 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         
-        # Migration: Make email column nullable in clients table
-        try:
-            await conn.execute(
-                text("ALTER TABLE clients ALTER COLUMN email DROP NOT NULL")
-            )
-            print("✅ Migration: Made email column nullable in clients table")
-        except Exception as e:
-            # Column might already be nullable or table doesn't exist yet
-            error_str = str(e).lower()
-            if "does not exist" not in error_str and "already" not in error_str and "cannot alter" not in error_str and "column \"email\" is not of type" not in error_str:
-                print(f"⚠️ Migration warning (email nullable): {e}")
+        # Migration: Make email and password_hash columns nullable in clients table
+        # This allows wallet-based authentication without requiring email/password
+        migrations = [
+            ("email", "ALTER TABLE clients ALTER COLUMN email DROP NOT NULL"),
+            ("password_hash", "ALTER TABLE clients ALTER COLUMN password_hash DROP NOT NULL"),
+        ]
+        
+        for column_name, sql in migrations:
+            try:
+                await conn.execute(text(sql))
+                print(f"✅ Migration: Made {column_name} column nullable in clients table")
+            except Exception as e:
+                # Column might already be nullable or table doesn't exist yet
+                error_str = str(e).lower()
+                if "does not exist" not in error_str and "already" not in error_str and "cannot alter" not in error_str and f"column \"{column_name}\" is not of type" not in error_str:
+                    print(f"⚠️ Migration warning ({column_name} nullable): {e}")
     
     # Auto-setup admin wallet on startup (one-time, safe to run multiple times)
     try:

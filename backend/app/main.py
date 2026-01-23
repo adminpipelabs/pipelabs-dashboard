@@ -202,6 +202,19 @@ app = FastAPI(
 # Print CORS origins for debugging
 print(f"🌐 CORS origins: {settings.CORS_ORIGINS}")
 
+# Add request logging middleware
+@app.middleware("http")
+async def log_requests(request, call_next):
+    import logging
+    logger = logging.getLogger("uvicorn.access")
+    
+    # Log API key creation requests
+    if "/api/admin/api-keys" in str(request.url) and request.method == "POST":
+        logger.info(f"📥 POST /api/admin/api-keys - Headers: {dict(request.headers)}")
+    
+    response = await call_next(request)
+    return response
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,

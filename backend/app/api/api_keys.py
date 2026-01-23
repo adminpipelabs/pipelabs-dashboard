@@ -72,66 +72,93 @@ async def create_api_key(
     """
     Create a new exchange API key for a client (Admin only)
     """
-    # Verify client exists
-    result = await db.execute(select(Client).where(Client.id == uuid.UUID(data.client_id)))
-    client = result.scalar_one_or_none()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
+    import logging
+    logger = logging.getLogger(__name__)
     
-    # Normalize exchange string (lowercase, replace hyphens with underscores for consistency)
-    exchange_value = data.exchange.lower().replace('-', '_')
-    
-    # Encrypt sensitive data before storing
-    encrypted_key = encrypt_api_key(data.api_key)
-    encrypted_secret = encrypt_api_key(data.api_secret)
-    encrypted_passphrase = encrypt_api_key(data.passphrase) if data.passphrase else None
-    
-    # Create API key record (store encrypted values in model fields)
-    api_key = ExchangeAPIKey(
-        client_id=uuid.UUID(data.client_id),
-        exchange=exchange_value,
-        label=data.label,
-        api_key=encrypted_key,  # Store encrypted value
-        api_secret=encrypted_secret,  # Store encrypted value
-        passphrase=encrypted_passphrase,  # Store encrypted value (or None)
-        is_testnet=data.is_testnet,
-        is_active=True,
-    )
-    
-    db.add(api_key)
-    await db.commit()
-    await db.refresh(api_key)
-    
-    # Configure Hummingbot account with these keys
     try:
-        hbot_result = await hummingbot_service.configure_client_account(
-            client_id=str(client.id),
-            client_name=client.name,
-            api_key_record=api_key
+        logger.info(f"🔑 Creating API key for client {data.client_id}, exchange: {data.exchange}")
+        
+        # Verify client exists
+        result = await db.execute(select(Client).where(Client.id == uuid.UUID(data.client_id)))
+        client = result.scalar_one_or_none()
+        if not client:
+            logger.error(f"❌ Client not found: {data.client_id}")
+            raise HTTPException(status_code=404, detail="Client not found")
+        
+        logger.info(f"✅ Client found: {client.name}")
+        
+        # Normalize exchange string (lowercase, replace hyphens with underscores for consistency)
+        exchange_value = data.exchange.lower().replace('-', '_')
+        logger.info(f"📝 Normalized exchange: {data.exchange} -> {exchange_value}")
+        
+        # Encrypt sensitive data before storing
+        try:
+            encrypted_key = encrypt_api_key(data.api_key)
+            encrypted_secret = encrypt_api_key(data.api_secret)
+            encrypted_passphrase = encrypt_api_key(data.passphrase) if data.passphrase else None
+            logger.info(f"✅ Encryption successful for exchange {exchange_value}")
+        except Exception as e:
+            logger.error(f"❌ Encryption failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to encrypt API keys: {str(e)}")
+        
+        # Create API key record (store encrypted values in model fields)
+        api_key = ExchangeAPIKey(
+            client_id=uuid.UUID(data.client_id),
+            exchange=exchange_value,
+            label=data.label,
+            api_key=encrypted_key,  # Store encrypted value
+            api_secret=encrypted_secret,  # Store encrypted value
+            passphrase=encrypted_passphrase,  # Store encrypted value (or None)
+            is_testnet=data.is_testnet,
+            is_active=True,
         )
-        if not hbot_result.get("success"):
-            # Log error but don't fail the API key creation
-            print(f"Warning: Failed to configure Hummingbot: {hbot_result.get('error')}")
+        
+        db.add(api_key)
+        logger.info(f"💾 Attempting to save API key to database...")
+        await db.commit()
+        await db.refresh(api_key)
+        logger.info(f"✅ API key saved successfully with ID: {api_key.id}")
+    
+        # Configure Hummingbot account with these keys
+        try:
+            logger.info(f"🤖 Configuring Hummingbot account...")
+            hbot_result = await hummingbot_service.configure_client_account(
+                client_id=str(client.id),
+                client_name=client.name,
+                api_key_record=api_key
+            )
+            if not hbot_result.get("success"):
+                # Log error but don't fail the API key creation
+                logger.warning(f"⚠️ Failed to configure Hummingbot: {hbot_result.get('error')}")
+            else:
+                logger.info(f"✅ Hummingbot configured successfully")
+        except Exception as e:
+            logger.warning(f"⚠️ Hummingbot configuration error: {e}")
+        
+        # Return response with preview only
+        api_key_preview = f"{data.api_key[:6]}...{data.api_key[-4:]}" if len(data.api_key) > 10 else "***"
+        
+        logger.info(f"✅ API key creation complete: {api_key.id}")
+        return APIKeyResponse(
+            id=str(api_key.id),
+            client_id=str(api_key.client_id),
+            exchange=api_key.exchange,
+            label=api_key.label,
+            is_active=api_key.is_active,
+            is_testnet=api_key.is_testnet,
+            created_at=api_key.created_at,
+            updated_at=api_key.created_at,  # Model doesn't have updated_at field
+            last_verified_at=None,  # Not tracked yet
+            notes=None,  # Not in model yet
+            api_key_preview=api_key_preview,
+            has_passphrase=bool(data.passphrase),
+        )
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Warning: Hummingbot configuration error: {e}")
-    
-    # Return response with preview only
-    api_key_preview = f"{data.api_key[:6]}...{data.api_key[-4:]}" if len(data.api_key) > 10 else "***"
-    
-    return APIKeyResponse(
-        id=str(api_key.id),
-        client_id=str(api_key.client_id),
-        exchange=api_key.exchange,
-        label=api_key.label,
-        is_active=api_key.is_active,
-        is_testnet=api_key.is_testnet,
-        created_at=api_key.created_at,
-        updated_at=api_key.created_at,  # Model doesn't have updated_at field
-        last_verified_at=None,  # Not tracked yet
-        notes=None,  # Not in model yet
-        api_key_preview=api_key_preview,
-        has_passphrase=bool(data.passphrase),
-    )
+        logger.error(f"❌ Unexpected error creating API key: {e}", exc_info=True)
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create API key: {str(e)}")
 
 
 @router.get("/clients/{client_id}/api-keys", response_model=List[APIKeyResponse])

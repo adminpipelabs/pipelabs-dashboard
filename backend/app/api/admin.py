@@ -475,33 +475,59 @@ async def add_client_api_key(
     db: AsyncSession = Depends(get_db)
 ):
     """Add an API key for a client"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
+        logger.info(f"🔑 Adding API key for client {client_id}, exchange: {key_data.exchange}")
+        
         result = await db.execute(
             select(Client).where(Client.id == uuid.UUID(client_id))
         )
-        if not result.scalar_one_or_none():
+        client = result.scalar_one_or_none()
+        if not client:
+            logger.error(f"❌ Client not found: {client_id}")
             raise HTTPException(status_code=404, detail="Client not found")
+        
+        logger.info(f"✅ Client found: {client.name}")
+        
+        # IMPORTANT: Encrypt API keys before storing
+        from app.core.encryption import encrypt_api_key
+        try:
+            encrypted_key = encrypt_api_key(key_data.api_key)
+            encrypted_secret = encrypt_api_key(key_data.api_secret)
+            encrypted_passphrase = encrypt_api_key(key_data.passphrase) if key_data.passphrase else None
+            logger.info(f"✅ Encryption successful")
+        except Exception as e:
+            logger.error(f"❌ Encryption failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to encrypt API keys: {str(e)}")
+        
+        # Normalize exchange string
+        exchange_value = key_data.exchange.lower().replace('-', '_')
         
         new_key = ExchangeAPIKey(
             id=uuid.uuid4(),
             client_id=uuid.UUID(client_id),
-            exchange=key_data.exchange,
-            api_key=key_data.api_key,
-            api_secret=key_data.api_secret,
-            passphrase=key_data.passphrase,
+            exchange=exchange_value,
+            api_key=encrypted_key,  # Store encrypted value
+            api_secret=encrypted_secret,  # Store encrypted value
+            passphrase=encrypted_passphrase,  # Store encrypted value (or None)
             label=key_data.label or f"{key_data.exchange} API Key",
             is_testnet=key_data.is_testnet or False,
             is_active=True,
             created_at=datetime.utcnow()
         )
         
+        logger.info(f"💾 Saving API key to database...")
         db.add(new_key)
         await db.commit()
+        logger.info(f"✅ API key saved successfully with ID: {new_key.id}")
         
         return {"message": "API key added successfully", "id": str(new_key.id)}
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"❌ Error adding API key: {e}", exc_info=True)
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 

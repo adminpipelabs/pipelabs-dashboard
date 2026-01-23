@@ -94,6 +94,60 @@ async def lifespan(app: FastAPI):
                     END IF;
                 END $$;
             """),
+            ("client_pairs_table", """
+                CREATE TABLE IF NOT EXISTS client_pairs (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+                    exchange VARCHAR(100) NOT NULL,
+                    trading_pair VARCHAR(50) NOT NULL,
+                    bot_type VARCHAR(20) NOT NULL DEFAULT 'market_maker',
+                    status VARCHAR(20) NOT NULL DEFAULT 'active',
+                    spread_target NUMERIC(10, 4),
+                    volume_target_daily NUMERIC(20, 2),
+                    config_name VARCHAR(255),
+                    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                );
+            """),
+            ("client_pairs_add_columns", """
+                DO $$ 
+                BEGIN
+                    -- Add created_at if missing
+                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='client_pairs')
+                       AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='client_pairs' AND column_name='created_at') THEN
+                        ALTER TABLE client_pairs ADD COLUMN created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+                    END IF;
+                    
+                    -- Add updated_at if missing
+                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='client_pairs')
+                       AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='client_pairs' AND column_name='updated_at') THEN
+                        ALTER TABLE client_pairs ADD COLUMN updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+                    END IF;
+                    
+                    -- Add spread_target if missing
+                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='client_pairs')
+                       AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='client_pairs' AND column_name='spread_target') THEN
+                        ALTER TABLE client_pairs ADD COLUMN spread_target NUMERIC(10, 4);
+                    END IF;
+                    
+                    -- Add volume_target_daily if missing
+                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='client_pairs')
+                       AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='client_pairs' AND column_name='volume_target_daily') THEN
+                        ALTER TABLE client_pairs ADD COLUMN volume_target_daily NUMERIC(20, 2);
+                    END IF;
+                    
+                    -- Add config_name if missing
+                    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='client_pairs')
+                       AND NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                      WHERE table_name='client_pairs' AND column_name='config_name') THEN
+                        ALTER TABLE client_pairs ADD COLUMN config_name VARCHAR(255);
+                    END IF;
+                END $$;
+            """),
         ]
         
         for column_name, sql in migrations:

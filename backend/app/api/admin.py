@@ -231,13 +231,18 @@ async def get_clients(
                 "created_at": client.created_at.isoformat() if client.created_at else None
             })
         
-        # Load pairs for each client
+        # Load pairs for each client (with error handling)
         from app.models import ClientPair
         for i, client in enumerate(clients):
-            pairs_result = await db.execute(
-                select(ClientPair).where(ClientPair.client_id == client.id)
-            )
-            pairs = pairs_result.scalars().all()
+            try:
+                pairs_result = await db.execute(
+                    select(ClientPair).where(ClientPair.client_id == client.id)
+                )
+                pairs = pairs_result.scalars().all()
+            except Exception as e:
+                # If ClientPair table doesn't exist or has schema issues, just use empty list
+                print(f"⚠️ Warning: Could not load pairs for client {client.id}: {e}")
+                pairs = []
             
             # Update tokens from pairs
             pair_tokens = list(set([p.trading_pair for p in pairs]))

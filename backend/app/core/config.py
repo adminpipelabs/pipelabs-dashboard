@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     HUMMINGBOT_API_USERNAME: str = ""
     HUMMINGBOT_API_PASSWORD: str = ""
     
+    # Trading Bridge API
+    TRADING_BRIDGE_URL: str = "https://trading-bridge-production.up.railway.app"
+    
     # Claude API
     ANTHROPIC_API_KEY: str = ""
     CLAUDE_MODEL: str = "claude-sonnet-4-20250514"

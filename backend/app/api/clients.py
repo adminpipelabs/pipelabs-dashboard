@@ -187,29 +187,49 @@ async def get_balances(
     current_user: Annotated[Client, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db)
 ):
-    """Get real-time balances from Hummingbot for all client exchanges"""
+    """Get real-time balances from Trading Bridge for all client exchanges"""
+    import httpx
+    import logging
+    logger = logging.getLogger(__name__)
+    
     # Get client's account name
     account_name = f"client_{current_user.name.lower().replace(' ', '_')}"
     
-    # Get balances from Hummingbot
+    # Get trading bridge URL from settings
+    trading_bridge_url = getattr(settings, 'TRADING_BRIDGE_URL', 'https://trading-bridge-production.up.railway.app')
+    
+    # Get balances from Trading Bridge
     try:
-        balances_data = await hummingbot_service.get_balances(account_name)
-        balances = balances_data.get("balances", [])
-        
-        # Transform to response format
-        result = []
-        for balance in balances:
-            result.append(BalanceResponse(
-                exchange=balance.get("exchange", "unknown"),
-                asset=balance.get("asset", ""),
-                free=float(balance.get("free", 0)),
-                locked=float(balance.get("locked", 0)),
-                total=float(balance.get("total", 0)),
-                usd_value=balance.get("usd_value")
-            ))
-        return result
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{trading_bridge_url}/portfolio",
+                params={"account": account_name}
+            )
+            response.raise_for_status()
+            portfolio_data = response.json()
+            
+            # Trading bridge returns balances in format:
+            # { "balances": [{"connector": "bitmart", "asset": "USDT", "free": 100.0, "locked": 0.0, "total": 100.0}, ...] }
+            balances = portfolio_data.get("balances", [])
+            
+            # Transform to response format
+            result = []
+            for balance in balances:
+                result.append(BalanceResponse(
+                    exchange=balance.get("connector", balance.get("exchange", "unknown")),
+                    asset=balance.get("asset", ""),
+                    free=float(balance.get("free", 0)),
+                    locked=float(balance.get("locked", 0)),
+                    total=float(balance.get("total", balance.get("free", 0) + balance.get("locked", 0))),
+                    usd_value=balance.get("usd_value")
+                ))
+            logger.info(f"✅ Fetched {len(result)} balances for client {current_user.name} (account: {account_name})")
+            return result
+    except httpx.HTTPError as e:
+        logger.error(f"❌ Failed to get balances from trading bridge for {account_name}: {e}")
+        return []
     except Exception as e:
-        # Return empty list if Hummingbot is unavailable
+        logger.error(f"❌ Error getting balances for {account_name}: {e}", exc_info=True)
         return []
 
 

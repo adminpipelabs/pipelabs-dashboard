@@ -171,7 +171,10 @@ async def get_admin_overview(db: AsyncSession = Depends(get_db)):
 
 # GET /admin/clients
 @router.get("/clients")
-async def get_clients(db: AsyncSession = Depends(get_db)):
+async def get_clients(
+    current_admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
     """Get all clients"""
     try:
         result = await db.execute(select(Client).order_by(Client.created_at.desc()))

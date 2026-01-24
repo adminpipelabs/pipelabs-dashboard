@@ -557,7 +557,10 @@ async def add_client_api_key(
                 trading_bridge_success = True
                 logger.info(f"✅ Trading Bridge configured successfully for {client.name}")
                 logger.info(f"   Account: {hbot_result.get('account_name')}, Connector: {hbot_result.get('connector')}")
-        except httpx.TimeoutException as e:
+        except Exception as e:
+            # Check if it's an httpx exception
+            import httpx
+            if isinstance(e, httpx.TimeoutException):
             trading_bridge_error = f"Trading Bridge timeout: Service did not respond within 30 seconds"
             logger.error(f"❌ Trading Bridge timeout: {e}", exc_info=True)
         except httpx.HTTPStatusError as e:

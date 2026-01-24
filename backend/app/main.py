@@ -265,13 +265,13 @@ async def lifespan(app: FastAPI):
     
     # Auto-setup admin wallet on startup (one-time, safe to run multiple times)
     try:
-        from app.core.database import AsyncSessionLocal
+        from app.core.database import async_session_maker
         from app.models.user import User
         from web3 import Web3
         from sqlalchemy import select
         
         ADMIN_WALLET = "0x61b6EF3769c88332629fA657508724a912b79101"
-        async with AsyncSessionLocal() as db:
+        async with async_session_maker() as db:
             wallet = Web3.to_checksum_address(ADMIN_WALLET)
             result = await db.execute(select(User).where(User.wallet_address == wallet))
             user = result.scalar_one_or_none()
@@ -358,13 +358,13 @@ async def root():
 async def force_admin_setup():
     """Force admin setup - call this to set admin wallet"""
     try:
-        from app.core.database import AsyncSessionLocal
+        from app.core.database import async_session_maker
         from app.models.user import User
         from web3 import Web3
         from sqlalchemy import select
         
         ADMIN_WALLET = "0x61b6EF3769c88332629fA657508724a912b79101"
-        async with AsyncSessionLocal() as db:
+        async with async_session_maker() as db:
             wallet = Web3.to_checksum_address(ADMIN_WALLET)
             result = await db.execute(select(User).where(User.wallet_address == wallet))
             user = result.scalar_one_or_none()

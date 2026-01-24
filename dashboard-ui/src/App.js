@@ -22,7 +22,6 @@ import ProtectedRoute from './ProtectedRoute';
 const drawerWidth = 240;
 const menuItems = [
   { text: 'Dashboard', path: '/' },
-  { text: 'Portfolio', path: '/portfolio' },
   { text: 'Orders', path: '/orders' },
   { text: 'Bots', path: '/bots' },
   { text: 'Reports', path: '/reports' },

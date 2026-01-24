@@ -36,6 +36,27 @@ export default function Login() {
   const [error, setError] = useState(null);
   const [walletDialogOpen, setWalletDialogOpen] = useState(false);
 
+  // Check for expired session message
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('expired') === 'true') {
+      setError('Your session has expired. Please log in again.');
+    }
+    // Clear expired param from URL
+    if (urlParams.get('expired')) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  // Clear any invalid tokens on mount
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (token === 'mock-token-12345' || !token) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user');
+    }
+  }, []);
+
   // If already logged in, redirect to dashboard
   if (user) {
     return <Navigate to="/dashboard" replace />;

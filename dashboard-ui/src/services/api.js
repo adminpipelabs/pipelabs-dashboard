@@ -14,11 +14,24 @@ async function apiCall(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
   const token = localStorage.getItem('access_token'); // JWT token - matches Login.jsx
   
+  // Check if token exists and is not mock token
+  if (!token || token === 'mock-token-12345') {
+    console.warn('⚠️ No valid auth token found. Redirecting to login...');
+    // Clear invalid token
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
+    // Redirect to login
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
+    throw new Error('Authentication required. Please log in.');
+  }
+  
   const config = {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
+      'Authorization': `Bearer ${token}`, // Always include if token exists
       ...options.headers,
     },
   };
@@ -27,6 +40,19 @@ async function apiCall(endpoint, options = {}) {
     const response = await fetch(url, config);
     
     if (!response.ok) {
+      // Handle 401 Unauthorized - token expired or invalid
+      if (response.status === 401) {
+        console.warn('⚠️ 401 Unauthorized - Token expired or invalid');
+        // Clear invalid token
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('user');
+        // Redirect to login
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login?expired=true';
+        }
+        throw new Error('Session expired. Please log in again.');
+      }
+      
       // Try to extract error message from response
       let errorMessage = `API Error: ${response.status} ${response.statusText}`;
       try {
@@ -52,11 +78,15 @@ async function apiCall(endpoint, options = {}) {
     
     return await response.json();
   } catch (error) {
-    console.error('❌ API call failed:', {
-      url,
-      error: error.message,
-      status: error.status
-    });
+    // Don't log if it's an auth redirect
+    if (error.message !== 'Authentication required. Please log in.' && 
+        error.message !== 'Session expired. Please log in again.') {
+      console.error('❌ API call failed:', {
+        url,
+        error: error.message,
+        status: error.status
+      });
+    }
     throw error;
   }
 }

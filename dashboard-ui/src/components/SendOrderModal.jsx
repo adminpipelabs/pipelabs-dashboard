@@ -153,12 +153,13 @@ export default function SendOrderModal({ open, onClose, clientId, clientName, on
         ...(formData.order_type === 'LIMIT' && formData.price ? { price: parseFloat(formData.price) } : {}),
       };
 
-      // Call backend endpoint to send order via Hummingbot/trading-bridge
+      // Call backend endpoint to send order via Trading Bridge
       const result = await adminAPI.sendOrder(clientId, orderData);
       
-      if (result.success) {
+      // Backend returns {success: true, order_id, ...} or throws error
+      if (result && result.success !== false) {
         // Show success message
-        alert(`Order placed successfully!\nOrder ID: ${result.order_id || 'N/A'}\nTrading Pair: ${result.trading_pair}\nSide: ${result.side}\nQuantity: ${result.quantity}`);
+        alert(`Order placed successfully!\nOrder ID: ${result.order_id || 'N/A'}\nTrading Pair: ${result.trading_pair || orderData.trading_pair}\nSide: ${result.side || orderData.side}\nQuantity: ${result.quantity || orderData.quantity}`);
         
         if (onSuccess) {
           onSuccess();
@@ -167,11 +168,26 @@ export default function SendOrderModal({ open, onClose, clientId, clientName, on
         onClose();
         resetForm();
       } else {
-        setError(result.message || 'Failed to place order. Please try again.');
+        setError(result?.message || result?.detail || 'Failed to place order. Please try again.');
       }
     } catch (err) {
       console.error('Failed to send order:', err);
-      setError(err.message || 'Failed to send order. Please try again.');
+      // Extract error message from response
+      let errorMessage = 'Failed to send order. Please try again.';
+      if (err.message) {
+        errorMessage = err.message;
+      } else if (err.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+      
+      // Check if it's a connector issue
+      if (errorMessage.includes('not found in Trading Bridge') || errorMessage.includes('connector')) {
+        errorMessage += '\n\n💡 Tip: Use "Trading Bridge Diagnostics" above to reinitialize connectors first.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

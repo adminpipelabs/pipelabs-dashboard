@@ -1,6 +1,6 @@
 // Build trigger v5 - FORCE FRONTEND REBUILD v0.1.4 - Railway deployment trigger
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Portfolio, Orders, Bots, Agent } from './pages';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -73,7 +73,16 @@ function Layout() {
           <Toolbar />
           <List>
             {menuItems.map((item) => (
-              <ListItem button key={item.text} component={Link} to={item.path}>
+              <ListItem 
+                button 
+                key={item.text} 
+                component={Link} 
+                to={item.path}
+                onClick={(e) => {
+                  // Prevent default navigation issues
+                  e.stopPropagation();
+                }}
+              >
                 <ListItemText primary={item.text} />
               </ListItem>
             ))}

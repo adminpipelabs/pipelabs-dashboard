@@ -108,12 +108,21 @@ export default function TradingBridgeDiagnostics({ clientId, clientName }) {
     }
   };
 
+  if (!clientId) {
+    return null; // Don't render if no client ID
+  }
+
   return (
-    <Card>
+    <Card sx={{ mb: 3 }}>
       <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <CloudSyncIcon sx={{ mr: 1, color: 'primary.main' }} />
-          <Typography variant="h6">Trading Bridge Diagnostics</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <CloudSyncIcon sx={{ mr: 1, color: 'primary.main' }} />
+            <Typography variant="h6">Trading Bridge Diagnostics</Typography>
+          </Box>
+          <Typography variant="caption" color="text.secondary">
+            Fix connectors to enable orders & balances
+          </Typography>
         </Box>
 
         {error && (

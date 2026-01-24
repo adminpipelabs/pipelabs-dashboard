@@ -542,6 +542,7 @@ async def add_client_api_key(
         trading_bridge_error = None
         
         try:
+            import httpx
             from app.services.hummingbot import hummingbot_service
             logger.info(f"🤖 Configuring Trading Bridge account...")
             hbot_result = await hummingbot_service.configure_client_account(
@@ -558,17 +559,16 @@ async def add_client_api_key(
                 logger.info(f"✅ Trading Bridge configured successfully for {client.name}")
                 logger.info(f"   Account: {hbot_result.get('account_name')}, Connector: {hbot_result.get('connector')}")
         except Exception as e:
-            # Check if it's an httpx exception
             import httpx
             if isinstance(e, httpx.TimeoutException):
-            trading_bridge_error = f"Trading Bridge timeout: Service did not respond within 30 seconds"
-            logger.error(f"❌ Trading Bridge timeout: {e}", exc_info=True)
-        except httpx.HTTPStatusError as e:
-            trading_bridge_error = f"HTTP {e.response.status_code}: {e.response.text[:200]}"
-            logger.error(f"❌ Trading Bridge HTTP error: {e.response.status_code} - {e.response.text[:500]}", exc_info=True)
-        except Exception as e:
-            trading_bridge_error = str(e)
-            logger.error(f"❌ Trading Bridge configuration error: {e}", exc_info=True)
+                trading_bridge_error = f"Trading Bridge timeout: Service did not respond within 30 seconds"
+                logger.error(f"❌ Trading Bridge timeout: {e}", exc_info=True)
+            elif isinstance(e, httpx.HTTPStatusError):
+                trading_bridge_error = f"HTTP {e.response.status_code}: {e.response.text[:200]}"
+                logger.error(f"❌ Trading Bridge HTTP error: {e.response.status_code} - {e.response.text[:500]}", exc_info=True)
+            else:
+                trading_bridge_error = str(e)
+                logger.error(f"❌ Trading Bridge configuration error: {e}", exc_info=True)
         
         # Return success for API key creation, but include Trading Bridge status
         response = {

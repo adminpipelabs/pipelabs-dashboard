@@ -25,12 +25,38 @@ async function apiCall(endpoint, options = {}) {
 
   try {
     const response = await fetch(url, config);
+    
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
+      // Try to extract error message from response
+      let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorData.message || errorMessage;
+      } catch (e) {
+        // If response is not JSON, use status text
+        const text = await response.text().catch(() => '');
+        if (text) errorMessage = text.substring(0, 200);
+      }
+      
+      const error = new Error(errorMessage);
+      error.status = response.status;
+      error.response = response;
+      console.error('❌ API call failed:', {
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        error: errorMessage
+      });
+      throw error;
     }
+    
     return await response.json();
   } catch (error) {
-    console.error('API call failed:', error);
+    console.error('❌ API call failed:', {
+      url,
+      error: error.message,
+      status: error.status
+    });
     throw error;
   }
 }

@@ -153,8 +153,9 @@ class HummingbotService:
             
             # 4. Create account in Trading Bridge (if not exists)
             async with httpx.AsyncClient(timeout=30.0) as client:
+                # Try to create account (idempotent - safe to call multiple times)
                 try:
-                    # Try to create account (idempotent - safe to call multiple times)
+                    logger.info(f"📡 Creating Trading Bridge account: {account_name}")
                     create_response = await client.post(
                         f"{trading_bridge_url}/accounts/create",
                         json={"account_name": account_name}
@@ -162,9 +163,22 @@ class HummingbotService:
                     if create_response.status_code in [200, 201, 409]:  # 409 = already exists
                         logger.info(f"✅ Trading Bridge account ready: {account_name}")
                     else:
-                        logger.warning(f"⚠️ Account creation response: {create_response.status_code}")
+                        error_text = create_response.text[:500] if hasattr(create_response, 'text') else "No error text"
+                        logger.error(f"❌ Account creation failed: HTTP {create_response.status_code} - {error_text}")
+                        raise Exception(f"Failed to create account: HTTP {create_response.status_code}")
+                except httpx.TimeoutException:
+                    logger.error(f"❌ Trading Bridge timeout when creating account {account_name}")
+                    raise Exception(f"Trading Bridge timeout: Service did not respond within 30 seconds")
+                except httpx.HTTPStatusError as e:
+                    if e.response.status_code == 409:
+                        logger.info(f"✅ Trading Bridge account already exists: {account_name}")
+                    else:
+                        error_text = e.response.text[:500] if hasattr(e.response, 'text') else str(e)
+                        logger.error(f"❌ HTTP error creating account: {e.response.status_code} - {error_text}")
+                        raise Exception(f"HTTP {e.response.status_code}: {error_text}")
                 except Exception as e:
-                    logger.warning(f"⚠️ Account may already exist: {e}")
+                    logger.error(f"❌ Unexpected error creating account: {e}", exc_info=True)
+                    raise
                 
                 # 5. Add connector to Trading Bridge
                 connector_name = str(api_key_record.exchange).lower()
@@ -179,12 +193,25 @@ class HummingbotService:
                 if api_key_record.passphrase:
                     connector_payload["memo"] = decrypt_api_key(api_key_record.passphrase)
                 
-                connector_response = await client.post(
-                    f"{trading_bridge_url}/connectors/add",
-                    json=connector_payload
-                )
-                connector_response.raise_for_status()
-                logger.info(f"✅ Added {connector_name} connector to Trading Bridge account {account_name}")
+                try:
+                    logger.info(f"📡 Adding connector {connector_name} to account {account_name}")
+                    connector_response = await client.post(
+                        f"{trading_bridge_url}/connectors/add",
+                        json=connector_payload
+                    )
+                    connector_response.raise_for_status()
+                    logger.info(f"✅ Added {connector_name} connector to Trading Bridge account {account_name}")
+                except httpx.TimeoutException:
+                    logger.error(f"❌ Trading Bridge timeout when adding connector {connector_name}")
+                    raise Exception(f"Trading Bridge timeout: Service did not respond when adding connector")
+                except httpx.HTTPStatusError as e:
+                    error_text = e.response.text[:500] if hasattr(e.response, 'text') else str(e)
+                    logger.error(f"❌ HTTP error adding connector: {e.response.status_code} - {error_text}")
+                    logger.error(f"   Payload: account={account_name}, connector={connector_name}, has_api_key={bool(api_key)}, has_api_secret={bool(api_secret)}")
+                    raise Exception(f"HTTP {e.response.status_code}: Failed to add connector - {error_text}")
+                except Exception as e:
+                    logger.error(f"❌ Unexpected error adding connector: {e}", exc_info=True)
+                    raise
             
             return {
                 "success": True,

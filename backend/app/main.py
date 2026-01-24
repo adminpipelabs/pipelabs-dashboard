@@ -16,6 +16,7 @@ from app.api.auth import router as auth_router
 from app.api.clients import router as clients_router
 from app.api.api_keys import router as api_keys_router
 from app.api.trading_bridge_diagnostics import router as diagnostics_router
+from app.api.market_data import router as market_data_router
 
 
 @asynccontextmanager
@@ -339,6 +340,7 @@ app.include_router(admin_quick_router, prefix="/api/admin", tags=["Admin"])
 app.include_router(admin_pairs_router, prefix="/api/admin", tags=["Admin"])
 app.include_router(api_keys_router, prefix="/api/admin", tags=["API Keys"])
 app.include_router(diagnostics_router, prefix="/api/diagnostics", tags=["Diagnostics"])
+app.include_router(market_data_router, prefix="/api/admin/market", tags=["Market Data"])
 app.include_router(agent_router, prefix="/api/agent", tags=["Agent"])
 app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
 app.include_router(clients_router, prefix="/api/clients", tags=["Clients"])

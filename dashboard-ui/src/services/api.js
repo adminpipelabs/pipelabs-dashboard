@@ -750,6 +750,30 @@ export const adminAPI = {
     }
     
     return apiCall(`/api/admin/clients/${clientId}/detail`);
+  },
+
+  /**
+   * Get prices from Hummingbot MCP directly (bypasses database)
+   * Same way Claude Desktop gets prices
+   */
+  async getPrices(connectorName, tradingPairs) {
+    // tradingPairs can be a string (comma-separated) or array
+    const pairsStr = Array.isArray(tradingPairs) 
+      ? tradingPairs.join(',') 
+      : tradingPairs;
+    
+    return apiCall(
+      `/api/admin/market/prices?connector_name=${encodeURIComponent(connectorName)}&trading_pairs=${encodeURIComponent(pairsStr)}`
+    );
+  },
+
+  /**
+   * Get single price from Hummingbot MCP directly
+   */
+  async getPrice(connectorName, tradingPair) {
+    return apiCall(
+      `/api/admin/market/price?connector_name=${encodeURIComponent(connectorName)}&trading_pair=${encodeURIComponent(tradingPair)}`
+    );
   }
 };
 

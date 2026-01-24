@@ -134,11 +134,18 @@ export default function SendOrderModal({ open, onClose, clientId, clientName, on
     setError(null);
 
     try {
+      // Validate exchange is selected
+      if (!formData.exchange || formData.exchange.trim() === '') {
+        setError('Please select an exchange');
+        setLoading(false);
+        return;
+      }
+      
       // Format trading pair (ensure correct format)
       const tradingPairFormatted = formData.trading_pair.toUpperCase().replace('-', '/');
       
       const orderData = {
-        exchange: formData.exchange.toLowerCase(),
+        exchange: formData.exchange.toLowerCase().trim(),
         trading_pair: tradingPairFormatted,
         side: formData.side,
         order_type: formData.order_type,

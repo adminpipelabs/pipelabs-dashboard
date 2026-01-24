@@ -135,9 +135,9 @@ async def create_api_key(
         await db.refresh(api_key)
         logger.info(f"✅ API key saved successfully with ID: {api_key.id}")
     
-        # Configure Hummingbot account with these keys
+        # Configure Trading Bridge account with these keys
         try:
-            logger.info(f"🤖 Configuring Hummingbot account...")
+            logger.info(f"🤖 Configuring Trading Bridge account...")
             hbot_result = await hummingbot_service.configure_client_account(
                 client_id=str(client.id),
                 client_name=client.name,
@@ -145,11 +145,13 @@ async def create_api_key(
             )
             if not hbot_result.get("success"):
                 # Log error but don't fail the API key creation
-                logger.warning(f"⚠️ Failed to configure Hummingbot: {hbot_result.get('error')}")
+                logger.error(f"❌ Failed to configure Trading Bridge: {hbot_result.get('error')}")
+                logger.error(f"   Account: {hbot_result.get('account_name')}, Connector: {hbot_result.get('connector')}")
             else:
-                logger.info(f"✅ Hummingbot configured successfully")
+                logger.info(f"✅ Trading Bridge configured successfully for {client.name}")
+                logger.info(f"   Account: {hbot_result.get('account_name')}, Connector: {hbot_result.get('connector')}")
         except Exception as e:
-            logger.warning(f"⚠️ Hummingbot configuration error: {e}")
+            logger.error(f"❌ Trading Bridge configuration error: {e}", exc_info=True)
         
         # Return response with preview only
         api_key_preview = f"{data.api_key[:6]}...{data.api_key[-4:]}" if len(data.api_key) > 10 else "***"

@@ -607,10 +607,17 @@ async def send_order(
                 detail="Price is required for LIMIT orders"
             )
         
-        # Normalize exchange name for matching (handle case variations)
-        exchange_normalized = order_data.exchange.lower().replace('-', '_').replace(' ', '_')
+        # Validate exchange is provided
+        if not order_data.exchange or not order_data.exchange.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Exchange is required"
+            )
         
-        # Get active API key for the exchange (match normalized exchange name)
+        # Normalize exchange name for matching (handle case variations)
+        exchange_normalized = str(order_data.exchange).lower().replace('-', '_').replace(' ', '_').strip()
+        
+        # Get active API keys for the client
         api_key_result = await db.execute(
             select(ExchangeAPIKey).where(
                 ExchangeAPIKey.client_id == uuid.UUID(client_id),
@@ -619,19 +626,26 @@ async def send_order(
         )
         api_keys = api_key_result.scalars().all()
         
+        if not api_keys:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No active API keys found for client. Please add API keys first."
+            )
+        
         # Find matching API key (normalize both for comparison)
         api_key = None
         for key in api_keys:
-            key_exchange_normalized = str(key.exchange).lower().replace('-', '_').replace(' ', '_')
+            key_exchange_normalized = str(key.exchange).lower().replace('-', '_').replace(' ', '_').strip()
             if key_exchange_normalized == exchange_normalized:
                 api_key = key
                 break
         
         if not api_key:
             available_exchanges = [str(k.exchange) for k in api_keys]
+            logger.warning(f"Exchange '{order_data.exchange}' (normalized: '{exchange_normalized}') not found. Available: {available_exchanges}")
             raise HTTPException(
                 status_code=400,
-                detail=f"No active API key found for exchange {order_data.exchange}. Available exchanges: {', '.join(available_exchanges)}"
+                detail=f"No active API key found for exchange '{order_data.exchange}'. Available exchanges: {', '.join(available_exchanges)}"
             )
         
         # Get account name for client

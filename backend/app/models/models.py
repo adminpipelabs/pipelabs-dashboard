@@ -63,7 +63,7 @@ class ExchangeAPIKey(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     # Relationships
     client: Mapped["Client"] = relationship("Client", back_populates="api_keys")

@@ -522,11 +522,25 @@ async def add_client_api_key(
         
         logger.info(f"💾 Saving API key to database...")
         db.add(new_key)
-        await db.commit()
-        await db.refresh(new_key)
-        logger.info(f"✅ API key saved successfully with ID: {new_key.id}")
+        
+        try:
+            await db.commit()
+            await db.refresh(new_key)
+            logger.info(f"✅ API key saved successfully with ID: {new_key.id}")
+        except Exception as db_error:
+            await db.rollback()
+            logger.error(f"❌ Database error saving API key: {db_error}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to save API key to database: {str(db_error)}"
+            )
         
         # Configure Trading Bridge account with these keys
+        # NOTE: This happens AFTER DB commit to avoid orphaned records if Trading Bridge fails
+        # If Trading Bridge fails, API key is still saved and can be reinitialized later
+        trading_bridge_success = False
+        trading_bridge_error = None
+        
         try:
             from app.services.hummingbot import hummingbot_service
             logger.info(f"🤖 Configuring Trading Bridge account...")
@@ -536,17 +550,35 @@ async def add_client_api_key(
                 api_key_record=new_key
             )
             if not hbot_result.get("success"):
-                # Log error but don't fail the API key creation
-                logger.error(f"❌ Failed to configure Trading Bridge: {hbot_result.get('error')}")
+                trading_bridge_error = hbot_result.get('error', 'Unknown error')
+                logger.error(f"❌ Failed to configure Trading Bridge: {trading_bridge_error}")
                 logger.error(f"   Account: {hbot_result.get('account_name')}, Connector: {hbot_result.get('connector')}")
             else:
+                trading_bridge_success = True
                 logger.info(f"✅ Trading Bridge configured successfully for {client.name}")
                 logger.info(f"   Account: {hbot_result.get('account_name')}, Connector: {hbot_result.get('connector')}")
+        except httpx.TimeoutException as e:
+            trading_bridge_error = f"Trading Bridge timeout: Service did not respond within 30 seconds"
+            logger.error(f"❌ Trading Bridge timeout: {e}", exc_info=True)
+        except httpx.HTTPStatusError as e:
+            trading_bridge_error = f"HTTP {e.response.status_code}: {e.response.text[:200]}"
+            logger.error(f"❌ Trading Bridge HTTP error: {e.response.status_code} - {e.response.text[:500]}", exc_info=True)
         except Exception as e:
+            trading_bridge_error = str(e)
             logger.error(f"❌ Trading Bridge configuration error: {e}", exc_info=True)
-            # Don't fail API key creation if Trading Bridge fails - user can reinitialize later
         
-        return {"message": "API key added successfully", "id": str(new_key.id)}
+        # Return success for API key creation, but include Trading Bridge status
+        response = {
+            "message": "API key added successfully",
+            "id": str(new_key.id),
+            "trading_bridge_configured": trading_bridge_success
+        }
+        
+        if trading_bridge_error:
+            response["trading_bridge_warning"] = f"Trading Bridge connector initialization failed: {trading_bridge_error}. Use 'Reinitialize' button to retry."
+            logger.warning(f"⚠️ API key saved but Trading Bridge not configured. User can reinitialize later.")
+        
+        return response
     except HTTPException:
         raise
     except Exception as e:

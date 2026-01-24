@@ -181,18 +181,28 @@ async def lifespan(app: FastAPI):
                             RAISE NOTICE 'Set api_secret to NOT NULL';
                         END IF;
                         
-                        -- Add updated_at column if it doesn't exist
+                        -- Add updated_at column if it doesn't exist (with default and NOT NULL)
                         IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                                       WHERE table_name='exchange_api_keys' AND column_name='updated_at') THEN
-                            ALTER TABLE exchange_api_keys ADD COLUMN updated_at TIMESTAMP WITHOUT TIME ZONE;
-                            RAISE NOTICE 'Added updated_at column';
+                            ALTER TABLE exchange_api_keys ADD COLUMN updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL;
+                            RAISE NOTICE 'Added updated_at column with default';
                         END IF;
                         
-                        -- Make updated_at nullable if it's NOT NULL (to avoid constraint violations)
+                        -- Ensure updated_at has default value if missing
                         IF EXISTS (SELECT 1 FROM information_schema.columns 
-                                   WHERE table_name='exchange_api_keys' AND column_name='updated_at' AND is_nullable='NO') THEN
-                            ALTER TABLE exchange_api_keys ALTER COLUMN updated_at DROP NOT NULL;
-                            RAISE NOTICE 'Made updated_at nullable';
+                                   WHERE table_name='exchange_api_keys' AND column_name='updated_at' 
+                                   AND column_default IS NULL) THEN
+                            ALTER TABLE exchange_api_keys ALTER COLUMN updated_at SET DEFAULT CURRENT_TIMESTAMP;
+                            RAISE NOTICE 'Set default value for updated_at';
+                        END IF;
+                        
+                        -- Ensure updated_at is NOT NULL (matching model definition)
+                        IF EXISTS (SELECT 1 FROM information_schema.columns 
+                                   WHERE table_name='exchange_api_keys' AND column_name='updated_at' AND is_nullable='YES') THEN
+                            -- First set default for existing NULL values
+                            UPDATE exchange_api_keys SET updated_at = created_at WHERE updated_at IS NULL;
+                            ALTER TABLE exchange_api_keys ALTER COLUMN updated_at SET NOT NULL;
+                            RAISE NOTICE 'Set updated_at to NOT NULL';
                         END IF;
                     END IF;
                 END $$;

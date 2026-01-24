@@ -32,6 +32,7 @@ import APIKeysManagement from './APIKeysManagement';
 import BotsModal from '../components/BotsModal';
 import SendOrderModal from '../components/SendOrderModal';
 import PairsModal from '../components/PairsModal';
+import TradingBridgeDiagnostics from '../components/TradingBridgeDiagnostics';
 import AddIcon from '@mui/icons-material/Add';
 import SendIcon from '@mui/icons-material/Send';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
@@ -207,6 +208,12 @@ export default function ClientDetailView() {
       <Alert severity="info" sx={{ mb: 3 }}>
         👁️ Viewing as Admin - You're seeing {clientData.client.name}'s dashboard
       </Alert>
+
+      {/* Trading Bridge Diagnostics */}
+      <TradingBridgeDiagnostics 
+        clientId={clientId} 
+        clientName={clientData?.client?.name || ''} 
+      />
 
       {/* Quick Actions */}
       <Card sx={{ mb: 3 }}>

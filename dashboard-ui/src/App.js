@@ -92,12 +92,20 @@ function Layout() {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  navigate(item.path, { replace: false });
+                  // Use navigate without causing page reload
+                  navigate(item.path);
                 }}
+                selected={location.pathname === item.path}
                 sx={{ 
                   cursor: 'pointer',
                   '&:hover': {
                     backgroundColor: 'action.hover'
+                  },
+                  '&.Mui-selected': {
+                    backgroundColor: 'action.selected',
+                    '&:hover': {
+                      backgroundColor: 'action.selected'
+                    }
                   }
                 }}
               >

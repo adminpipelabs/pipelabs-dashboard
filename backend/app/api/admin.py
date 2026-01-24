@@ -523,7 +523,28 @@ async def add_client_api_key(
         logger.info(f"💾 Saving API key to database...")
         db.add(new_key)
         await db.commit()
+        await db.refresh(new_key)
         logger.info(f"✅ API key saved successfully with ID: {new_key.id}")
+        
+        # Configure Trading Bridge account with these keys
+        try:
+            from app.services.hummingbot import hummingbot_service
+            logger.info(f"🤖 Configuring Trading Bridge account...")
+            hbot_result = await hummingbot_service.configure_client_account(
+                client_id=str(client.id),
+                client_name=client.name,
+                api_key_record=new_key
+            )
+            if not hbot_result.get("success"):
+                # Log error but don't fail the API key creation
+                logger.error(f"❌ Failed to configure Trading Bridge: {hbot_result.get('error')}")
+                logger.error(f"   Account: {hbot_result.get('account_name')}, Connector: {hbot_result.get('connector')}")
+            else:
+                logger.info(f"✅ Trading Bridge configured successfully for {client.name}")
+                logger.info(f"   Account: {hbot_result.get('account_name')}, Connector: {hbot_result.get('connector')}")
+        except Exception as e:
+            logger.error(f"❌ Trading Bridge configuration error: {e}", exc_info=True)
+            # Don't fail API key creation if Trading Bridge fails - user can reinitialize later
         
         return {"message": "API key added successfully", "id": str(new_key.id)}
     except HTTPException:

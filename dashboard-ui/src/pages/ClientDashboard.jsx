@@ -41,11 +41,37 @@ export default function ClientDashboard() {
       setLoading(true);
       setError('');
       
+      // Check if user is logged in and has valid token
+      const token = localStorage.getItem('access_token');
+      if (!token || token === 'mock-token-12345') {
+        setError('Please log in with a valid account to view dashboard data.');
+        setLoading(false);
+        return;
+      }
+      
       // Fetch real data from API
       const [portfolio, balances, trades] = await Promise.all([
-        clientAPI.getPortfolio().catch(() => ({ total_pnl: 0, volume_24h: 0, active_bots: 0, total_bots: 0 })),
-        clientAPI.getBalances().catch(() => []),
-        clientAPI.getTrades(null, 100, timeRange === '24h' ? 1 : timeRange === '7d' ? 7 : 30).catch(() => [])
+        clientAPI.getPortfolio().catch((err) => {
+          console.error('Portfolio error:', err);
+          if (err.status === 401) {
+            setError('Authentication failed. Please log in again.');
+          }
+          return { total_pnl: 0, volume_24h: 0, active_bots: 0, total_bots: 0 };
+        }),
+        clientAPI.getBalances().catch((err) => {
+          console.error('Balances error:', err);
+          if (err.status === 401) {
+            setError('Authentication failed. Please log in again.');
+          }
+          return [];
+        }),
+        clientAPI.getTrades(null, 100, timeRange === '24h' ? 1 : timeRange === '7d' ? 7 : 30).catch((err) => {
+          console.error('Trades error:', err);
+          if (err.status === 401) {
+            setError('Authentication failed. Please log in again.');
+          }
+          return [];
+        })
       ]);
       
       // Calculate total portfolio value from balances
@@ -311,6 +337,58 @@ export default function ClientDashboard() {
         </ToggleButtonGroup>
       </Box>
 
+      {/* Wallet Balances - Show SHARP, USDT, etc. in columns */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+            Wallet Balances
+          </Typography>
+          {dashboardData.assets && dashboardData.assets.length > 0 ? (
+            <Grid container spacing={2}>
+              {dashboardData.assets.map((asset) => (
+                <Grid item xs={12} sm={6} md={4} key={asset.symbol}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                        <WalletIcon sx={{ mr: 1, color: 'primary.main' }} />
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                          {asset.symbol}
+                        </Typography>
+                      </Box>
+                      <Typography variant="h5" sx={{ fontWeight: 600, mb: 0.5 }}>
+                        {formatNumber(asset.balance, asset.symbol === 'USDT' || asset.symbol === 'USDC' ? 2 : 4)}
+                      </Typography>
+                      {asset.usdValue > 0 && (
+                        <Typography variant="body2" color="text.secondary">
+                          {formatCurrency(asset.usdValue)}
+                        </Typography>
+                      )}
+                      <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Available: {formatNumber(asset.free, asset.symbol === 'USDT' || asset.symbol === 'USDC' ? 2 : 4)}
+                        </Typography>
+                        {asset.locked > 0 && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            Locked: {formatNumber(asset.locked, asset.symbol === 'USDT' || asset.symbol === 'USDC' ? 2 : 4)}
+                          </Typography>
+                        )}
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                          {asset.exchanges.length} exchange{asset.exchanges.length !== 1 ? 's' : ''}: {asset.exchanges.join(', ')}
+                        </Typography>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              No balances found. Make sure API keys are configured for your account.
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Key Metrics */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {/* Portfolio Value */}
@@ -320,33 +398,15 @@ export default function ClientDashboard() {
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                 <WalletIcon sx={{ mr: 1, color: 'primary.main' }} />
                 <Typography color="text.secondary" variant="body2">
-                  Portfolio Value
+                  Total Portfolio Value
                 </Typography>
               </Box>
               <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
                 {formatCurrency(dashboardData.portfolio.totalValue)}
               </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                {dashboardData.portfolio.changePercent24h >= 0 ? (
-                  <TrendingUpIcon sx={{ color: 'success.main', mr: 0.5 }} />
-                ) : (
-                  <TrendingDownIcon sx={{ color: 'error.main', mr: 0.5 }} />
-                )}
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: dashboardData.portfolio.changePercent24h >= 0 ? 'success.main' : 'error.main',
-                    fontWeight: 600,
-                  }}
-                >
-                  {dashboardData.portfolio.changePercent24h >= 0 ? '+' : ''}
-                  {formatNumber(dashboardData.portfolio.changePercent24h)}% (
-                  {formatCurrency(dashboardData.portfolio.change24h)})
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                  24h
-                </Typography>
-              </Box>
+              <Typography variant="body2" color="text.secondary">
+                Across all assets
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -380,7 +440,10 @@ export default function ClientDashboard() {
                 }}
               >
                 {dashboardData.pnl.percent >= 0 ? '+' : ''}
-                {formatNumber(dashboardData.pnl.percent)}%
+                {formatNumber(dashboardData.pnl.percent, 2)}%
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                Gain/Loss from {timeRange === '24h' ? '24 hours' : timeRange === '7d' ? '7 days' : '30 days'}
               </Typography>
             </CardContent>
           </Card>

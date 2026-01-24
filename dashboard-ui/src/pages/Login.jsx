@@ -47,9 +47,9 @@ export default function Login() {
     setError(null);
 
     try {
-      // MOCK MODE for testing (backend not required)
-      // Remove this section when backend is ready
-      if (true) { // Change to false to use real backend
+      // MOCK MODE disabled - use real backend
+      // Set to true to enable mock mode for testing
+      if (false) { // Change to true to enable mock mode
         // Mock successful login
         await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
         

@@ -919,10 +919,53 @@ export const agentAPI = {
 };
 
 /**
+ * Client API calls (for client-facing dashboard)
+ */
+export const clientAPI = {
+  /**
+   * Get client portfolio overview
+   */
+  async getPortfolio() {
+    return apiCall('/api/clients/portfolio');
+  },
+
+  /**
+   * Get client balances
+   */
+  async getBalances() {
+    return apiCall('/api/clients/balances');
+  },
+
+  /**
+   * Get client trade history
+   */
+  async getTrades(tradingPair = null, limit = 100, days = 7) {
+    const params = new URLSearchParams({
+      limit: limit.toString(),
+      days: days.toString()
+    });
+    if (tradingPair) {
+      params.append('trading_pair', tradingPair);
+    }
+    return apiCall(`/api/clients/trades?${params}`);
+  },
+
+  /**
+   * Reinitialize Trading Bridge connectors
+   */
+  async reinitializeConnectors() {
+    return apiCall('/api/clients/connectors/reinitialize', {
+      method: 'POST',
+    });
+  }
+};
+
+/**
  * Default export for convenience (wraps all APIs)
  */
 const api = {
   admin: adminAPI,
+  client: clientAPI,
   reports: reportsAPI,
   agent: agentAPI
 };

@@ -16,6 +16,7 @@ import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import TokenIcon from '@mui/icons-material/Token';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import { adminAPI } from '../services/api';
+import PriceDisplay from '../components/PriceDisplay';
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
@@ -77,6 +78,16 @@ export default function AdminDashboard() {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
         Multi-tenant trading platform metrics and management
       </Typography>
+
+      {/* Live Price Display - Direct Hummingbot MCP (like Claude Desktop) */}
+      <Box sx={{ mb: 3 }}>
+        <PriceDisplay 
+          defaultExchange="bitmart"
+          defaultPair="SHARP-USDT"
+          autoRefresh={true}
+          refreshInterval={10000}
+        />
+      </Box>
 
       {dashboardData && (
         <>

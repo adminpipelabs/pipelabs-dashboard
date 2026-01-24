@@ -33,6 +33,7 @@ import BotsModal from '../components/BotsModal';
 import SendOrderModal from '../components/SendOrderModal';
 import PairsModal from '../components/PairsModal';
 import TradingBridgeDiagnostics from '../components/TradingBridgeDiagnostics';
+import PriceDisplay from '../components/PriceDisplay';
 import AddIcon from '@mui/icons-material/Add';
 import SendIcon from '@mui/icons-material/Send';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
@@ -68,6 +69,45 @@ export default function ClientDetailView() {
   useEffect(() => {
     loadClientData();
   }, [loadClientData]);
+
+  // Auto-initialize Trading Bridge connectors if API keys exist but connectors don't
+  useEffect(() => {
+    const autoInitializeConnectors = async () => {
+      if (!clientData || !clientId) return;
+      
+      // Check if client has API keys
+      const hasApiKeys = clientData.connectors && clientData.connectors.length > 0;
+      if (!hasApiKeys) return;
+
+      try {
+        // Check connector status
+        const status = await adminAPI.getClientTradingBridgeStatus(clientId);
+        const hasConnectors = status?.connectors_status?.connectors?.length > 0;
+        
+        // If API keys exist but no connectors, auto-initialize
+        if (hasApiKeys && !hasConnectors) {
+          console.log('🔧 Auto-initializing Trading Bridge connectors...');
+          const result = await adminAPI.reinitializeClientConnectors(clientId);
+          if (result.success) {
+            console.log('✅ Connectors initialized successfully');
+            // Reload client data to refresh balances
+            setTimeout(() => loadClientData(), 2000);
+          }
+        }
+      } catch (err) {
+        console.error('Auto-initialization error:', err);
+        // Don't show error to user - they can use manual button
+      }
+    };
+
+    // Wait a bit for client data to load, then check
+    if (clientData) {
+      const timer = setTimeout(() => {
+        autoInitializeConnectors();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [clientData, clientId, loadClientData]);
 
   // Refresh data when modals close to ensure latest API keys are loaded
   const handleModalClose = (modalName) => {
@@ -214,6 +254,16 @@ export default function ClientDetailView() {
         clientId={clientId} 
         clientName={clientData?.client?.name || ''} 
       />
+
+      {/* Live Price Display - Direct Hummingbot MCP (like Claude Desktop) */}
+      <Box sx={{ mb: 3 }}>
+        <PriceDisplay 
+          defaultExchange="bitmart"
+          defaultPair="SHARP-USDT"
+          autoRefresh={true}
+          refreshInterval={10000}
+        />
+      </Box>
 
       {/* Quick Actions */}
       <Card sx={{ mb: 3 }}>

@@ -37,6 +37,7 @@ const adminMenuItems = [
 function Layout() {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [chatOpen, setChatOpen] = useState(() => {
     const saved = localStorage.getItem('chat-sidebar-open');
     return saved ? JSON.parse(saved) : true; // Default open

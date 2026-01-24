@@ -123,6 +123,22 @@ export const adminAPI = {
       body: JSON.stringify(orderData),
     });
   },
+
+  // Trading Bridge Diagnostics
+  async getTradingBridgeHealth() {
+    return apiCall('/api/diagnostics/health');
+  },
+
+  async getClientTradingBridgeStatus(clientId) {
+    return apiCall(`/api/diagnostics/clients/${clientId}/status`);
+  },
+
+  async reinitializeClientConnectors(clientId) {
+    return apiCall(`/api/diagnostics/clients/${clientId}/reinitialize`, {
+      method: 'POST',
+    });
+  },
+
   async getDashboard() {
     if (USE_MOCK) {
       await new Promise(resolve => setTimeout(resolve, 800));

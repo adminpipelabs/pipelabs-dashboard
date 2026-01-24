@@ -75,12 +75,17 @@ function Layout() {
             {menuItems.map((item) => (
               <ListItem 
                 button 
-                key={item.text} 
-                component={Link} 
-                to={item.path}
+                key={item.text}
                 onClick={(e) => {
-                  // Prevent default navigation issues
+                  e.preventDefault();
                   e.stopPropagation();
+                  navigate(item.path, { replace: false });
+                }}
+                sx={{ 
+                  cursor: 'pointer',
+                  '&:hover': {
+                    backgroundColor: 'action.hover'
+                  }
                 }}
               >
                 <ListItemText primary={item.text} />

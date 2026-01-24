@@ -739,9 +739,12 @@ async def send_order(
                 )
                 
                 if response.status_code == 404:
+                    error_detail = f"Account '{account_name}' or connector '{connector_name}' not found in Trading Bridge. "
+                    error_detail += f"Please use 'Trading Bridge Diagnostics' → 'Reinitialize' to initialize connectors for this client."
+                    logger.error(f"❌ Trading Bridge 404: Account={account_name}, Connector={connector_name}")
                     raise HTTPException(
                         status_code=400,
-                        detail=f"Account {account_name} or connector {connector_name} not found in Trading Bridge. Please ensure API keys are configured."
+                        detail=error_detail
                     )
                 
                 response.raise_for_status()
@@ -749,11 +752,31 @@ async def send_order(
                 
                 logger.info(f"✅ Order placed successfully: {result}")
                 
+        except httpx.TimeoutException as e:
+            logger.error(f"❌ Trading Bridge timeout: {e}")
+            raise HTTPException(
+                status_code=504,
+                detail="Trading Bridge service timeout. Please try again in a moment."
+            )
         except httpx.HTTPStatusError as e:
-            logger.error(f"❌ Trading Bridge HTTP error: {e.response.status_code} - {e.response.text}")
+            error_text = e.response.text[:500] if hasattr(e.response, 'text') else str(e)
+            logger.error(f"❌ Trading Bridge HTTP error: {e.response.status_code} - {error_text}")
+            
+            # Provide more helpful error messages
+            if e.response.status_code == 400:
+                detail = f"Invalid order request: {error_text}"
+            elif e.response.status_code == 401:
+                detail = f"Authentication failed with Trading Bridge. Please reinitialize connectors."
+            elif e.response.status_code == 404:
+                detail = f"Connector '{connector_name}' not found. Please use 'Trading Bridge Diagnostics' → 'Reinitialize'."
+            elif e.response.status_code == 500:
+                detail = f"Trading Bridge internal error: {error_text}"
+            else:
+                detail = f"Trading Bridge error ({e.response.status_code}): {error_text}"
+            
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to place order: {e.response.text}"
+                detail=detail
             )
         except Exception as e:
             logger.error(f"❌ Failed to place order: {e}", exc_info=True)

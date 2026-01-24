@@ -47,6 +47,19 @@ function Layout() {
     localStorage.setItem('chat-sidebar-open', JSON.stringify(chatOpen));
   }, [chatOpen]);
   
+  // Clear invalid mock tokens on mount
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (token === 'mock-token-12345') {
+      console.warn('⚠️ Clearing invalid mock token');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user');
+      if (location.pathname !== '/login' && location.pathname !== '/register') {
+        navigate('/login');
+      }
+    }
+  }, [location.pathname, navigate]);
+  
   if (!user && location.pathname !== '/login' && location.pathname !== '/register') {
     // Guard everything except login and register
     return <Navigate to="/login" state={{ from: location }} replace />;
